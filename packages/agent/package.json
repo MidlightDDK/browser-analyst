@@ -3,12 +3,16 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./sandbox.contract": "./src/sandbox.contract.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

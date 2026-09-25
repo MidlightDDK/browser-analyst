@@ -1,0 +1,14 @@
+<!doctype html>
+<!-- Dev-only harness for the shared sandbox contract (web/e2e/sandbox-contract.e2e.ts).
+     `vite build` only builds index.html, so this page never ships. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:," />
+    <title>Sandbox contract</title>
+  </head>
+  <body>
+    <pre id="out">Call window.runContract()</pre>
+    <script type="module" src="/src/sandbox/contract-harness.ts"></script>
+  </body>
+</html>

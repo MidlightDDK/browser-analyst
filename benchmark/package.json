@@ -2,7 +2,14 @@
   "name": "@browser-analyst/benchmark",
   "private": true,
   "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
-    "@browser-analyst/agent": "workspace:*"
+    "@browser-analyst/agent": "workspace:*",
+    "@duckdb/node-api": "1.5.4-r.1"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
   }
 }
