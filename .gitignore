@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.wrangler/
+coverage/
+playwright-report/
+test-results/
+.env
+.env.*
+.dev.vars
+CLAUDE.local.md
+.claude/settings.local.json
+HANDOFF.md
+benchmark/data/
+benchmark/results/
+benchmark/.cache/
+*.log
+.DS_Store
