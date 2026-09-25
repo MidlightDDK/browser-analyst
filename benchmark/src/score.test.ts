@@ -428,8 +428,11 @@ describe("scoreRun", () => {
       ).pass,
     ).toBe(true);
     expect(
-      scoreRun(task({ kind: "refuse" }), view(answer("5 years")), false).pass,
-    ).toBe(false);
+      scoreRun(task({ kind: "refuse" }), view(answer("5 years")), false).tags,
+    ).toEqual(["did_not_decline"]);
+    expect(
+      scoreRun(task({ kind: "clarify" }), view(answer("5 years"))).tags,
+    ).toEqual(["did_not_ask"]);
     const stop: Outcome = { kind: "stopped", reason: "step_cap", message: "" };
     expect(
       scoreRun(task({ kind: "number", value: 1 }), view(stop)).tags,

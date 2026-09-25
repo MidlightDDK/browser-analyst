@@ -26,6 +26,14 @@
   },
   "overrides": [
     {
+      "includes": [
+        "web/public/benchmark/**",
+        "web/public/replays/**",
+        "web/public/security/**"
+      ],
+      "formatter": { "enabled": false }
+    },
+    {
       "includes": ["web/src/workspace/PreviewGrid.tsx"],
       "linter": {
         "rules": {

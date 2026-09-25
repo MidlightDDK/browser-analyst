@@ -16,10 +16,10 @@ The agent works end to end: open a sample or your own CSV, TSV,
 Parquet, JSON, or Excel file, ask a question, and watch the agent plan, run SQL
 and (after you approve it) Python in your browser, draw charts, recover from its
 errors, and answer with numbers checked against the results that produced them.
-Prompt-injection defenses and a red-team suite are in (M5); the benchmark
-baseline (M4) and the live-model red-team numbers wait on free-tier quota. The
-milestones are in
-[docs/ROADMAP.md](docs/ROADMAP.md).
+Prompt-injection defenses and a red-team suite are in (M5). Every sample
+question plays a recorded real run, and a benchmark leaderboard is live (M6).
+The live model's benchmark baseline (M4) and red-team numbers wait on
+free-tier quota. The milestones are in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Agent
 
@@ -151,6 +151,47 @@ success rates are still to come: they wait on the free Gemini quota.
 The "Try to hack it" card on the home page loads a sales file with three
 injections hidden in its notes. Settings can turn each defense off (except
 CSP, which is a response header) to show what it stops.
+
+## Benchmark and replays
+
+The benchmark (`benchmark/`, `pnpm bench`) asks 100 questions about seven
+openly licensed datasets, in ten categories: aggregation, filter, join, time
+series, cleaning messy data, statistics, chart, multi-step, ambiguous (the
+agent should ask), and impossible (it should decline). Each question's ground
+truth is a reference SQL query. The harness runs the production agent loop
+(`packages/agent`) with Node twins of the browser's DuckDB and Python sandboxes,
+at temperature 0, and caches every model call, so rerunning it reproduces the
+results without calling a model. Leaderboard:
+[/benchmark](https://browser-analyst.azar-majed7.workers.dev/benchmark) (from
+[web/public/benchmark/latest.json](web/public/benchmark/latest.json)).
+
+Full runs on free tiers (prompt-v3, tools-v2):
+
+| Model | Success | Ambiguous: asked | Impossible: declined | Steps per task | Input tokens per task | Answers traced to results |
+| --- | --- | --- | --- | --- | --- | --- |
+| `gemini-3.1-flash-lite` | **94%** (94/100) | 3/8 | 8/8 | 3.1 | 11,205 | 100% |
+| `gemma-4-26b-a4b-it` | **88%** (88/100) | 1/8 | 6/8 | 3.5 | 14,090 | 100% |
+
+Both models got every aggregation, filter, join, time-series, and statistics
+question right. Most failures are judgment calls: faced with an ambiguous
+question ("What's the average?" about the bike-sharing table), both usually
+picked a reading and answered instead of asking. Gemma sometimes wrote its reasoning as
+text instead of calling a tool; the agent stops after three such replies.
+Every final answer's key numbers matched the result cells they cite. The live
+app's first model, `gemini-3.5-flash-lite`, joins the table once its daily
+quota allows a full run (it shares that quota with the live site). A cached
+rerun reproduced both rows exactly. The LLM judge that scores declines was out
+of quota during these runs, so the keyword rule decided most impossible
+questions (6 of 8 for Gemini, 5 of Gemma's 6 answers); on 30 hand-labeled
+answers the rule is 87% accurate and the judge 100%.
+
+Each sample question on the home page opens a replay of a real run: its trace
+events played back with their original timing (1×, 2×, or skip), under a
+banner naming the model and date, with a "Run live" button. `pnpm
+replay:record` records them with the same harness, a live model call per step,
+and no cache, so the timings are real. A replay needs no model and no gateway,
+so it still plays when every provider is down, and a live run that hits the
+quota offers the recording instead.
 
 ## Run locally
 

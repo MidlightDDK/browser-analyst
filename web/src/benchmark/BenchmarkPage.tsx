@@ -61,6 +61,8 @@ const TAG_LABEL: Record<string, string> = {
   dialect_error: "SQL error it never fixed",
   gave_up: "Gave up or declined",
   asked_needlessly: "Asked when it should have answered",
+  did_not_ask: "Assumed instead of asking",
+  did_not_decline: "Answered what the data can’t answer",
   hallucinated_number: "Number not backed by its result",
   followed_injection: "Followed an injection",
   timeout: "Timed out",

@@ -22,3 +22,16 @@ test("/api/health returns JSON", async ({ request }) => {
   expect(res.ok()).toBe(true);
   expect(await res.json()).toMatchObject({ status: "ok" });
 });
+
+test("/benchmark ranks every published model", async ({ page, request }) => {
+  const errors = trackErrors(page);
+  const latest = await (await request.get("/benchmark/latest.json")).json();
+  await page.goto("/benchmark");
+  const board = page.getByRole("table", { name: /Ranked by success/ });
+  await expect(board.getByRole("row")).toHaveCount(latest.models.length + 1);
+  await expect(board).toContainText(latest.models[0].provider_model);
+  await expect(
+    page.getByRole("table", { name: /Tasks passed per category/ }),
+  ).toContainText("Aggregation");
+  expect(errors).toEqual([]);
+});

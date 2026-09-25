@@ -1,0 +1,338 @@
+{
+  "generated_at": "2026-09-25T22:47:46.264Z",
+  "models": [
+    {
+      "model": "gemini31Lite",
+      "provider_model": "gemini-3.1-flash-lite",
+      "split": "all",
+      "prompt_version": "prompt-v3",
+      "toolset_version": "tools-v2",
+      "started_at": "2026-09-25T21:43:44.152Z",
+      "complete": true,
+      "overall": {
+        "tasks": 100,
+        "passed": 94,
+        "success": 94
+      },
+      "smoke": {
+        "tasks": 15,
+        "passed": 15,
+        "success": 100
+      },
+      "by_category": {
+        "aggregation": {
+          "tasks": 12,
+          "passed": 12,
+          "success": 100
+        },
+        "filter": {
+          "tasks": 11,
+          "passed": 11,
+          "success": 100
+        },
+        "join": {
+          "tasks": 9,
+          "passed": 9,
+          "success": 100
+        },
+        "time_series": {
+          "tasks": 11,
+          "passed": 11,
+          "success": 100
+        },
+        "cleaning": {
+          "tasks": 10,
+          "passed": 9,
+          "success": 90
+        },
+        "statistics": {
+          "tasks": 10,
+          "passed": 10,
+          "success": 100
+        },
+        "chart": {
+          "tasks": 10,
+          "passed": 10,
+          "success": 100
+        },
+        "multi_step": {
+          "tasks": 11,
+          "passed": 11,
+          "success": 100
+        },
+        "ambiguous": {
+          "tasks": 8,
+          "passed": 3,
+          "success": 37.5
+        },
+        "impossible": {
+          "tasks": 8,
+          "passed": 8,
+          "success": 100
+        }
+      },
+      "metrics": {
+        "mean_steps": 3.1,
+        "self_repair_rate": 0.875,
+        "tool_error_rate": 0.071,
+        "provenance_valid_rate": 1,
+        "tokens_in": 1120494,
+        "tokens_out": 43138,
+        "mean_tokens_in": 11205,
+        "wall_ms": 33565,
+        "cache_hit_rate": 1
+      },
+      "failure_tags": {
+        "wrong_aggregation": 1,
+        "did_not_ask": 5
+      },
+      "failures": [
+        {
+          "id": "cln-05",
+          "category": "cleaning",
+          "tags": [
+            "wrong_aggregation"
+          ],
+          "detail": "expected 95"
+        },
+        {
+          "id": "amb-03",
+          "category": "ambiguous",
+          "tags": [
+            "did_not_ask"
+          ],
+          "detail": "outcome answer"
+        },
+        {
+          "id": "amb-05",
+          "category": "ambiguous",
+          "tags": [
+            "did_not_ask"
+          ],
+          "detail": "outcome answer"
+        },
+        {
+          "id": "amb-06",
+          "category": "ambiguous",
+          "tags": [
+            "did_not_ask"
+          ],
+          "detail": "outcome answer"
+        },
+        {
+          "id": "amb-07",
+          "category": "ambiguous",
+          "tags": [
+            "did_not_ask"
+          ],
+          "detail": "outcome answer"
+        },
+        {
+          "id": "amb-08",
+          "category": "ambiguous",
+          "tags": [
+            "did_not_ask"
+          ],
+          "detail": "outcome answer"
+        }
+      ]
+    },
+    {
+      "model": "gemma4",
+      "provider_model": "gemma-4-26b-a4b-it",
+      "split": "all",
+      "prompt_version": "prompt-v3",
+      "toolset_version": "tools-v2",
+      "started_at": "2026-09-25T22:47:12.947Z",
+      "complete": true,
+      "overall": {
+        "tasks": 100,
+        "passed": 88,
+        "success": 88
+      },
+      "smoke": {
+        "tasks": 15,
+        "passed": 14,
+        "success": 93.3
+      },
+      "by_category": {
+        "aggregation": {
+          "tasks": 12,
+          "passed": 12,
+          "success": 100
+        },
+        "filter": {
+          "tasks": 11,
+          "passed": 11,
+          "success": 100
+        },
+        "join": {
+          "tasks": 9,
+          "passed": 9,
+          "success": 100
+        },
+        "time_series": {
+          "tasks": 11,
+          "passed": 11,
+          "success": 100
+        },
+        "cleaning": {
+          "tasks": 10,
+          "passed": 10,
+          "success": 100
+        },
+        "statistics": {
+          "tasks": 10,
+          "passed": 10,
+          "success": 100
+        },
+        "chart": {
+          "tasks": 10,
+          "passed": 9,
+          "success": 90
+        },
+        "multi_step": {
+          "tasks": 11,
+          "passed": 9,
+          "success": 81.8
+        },
+        "ambiguous": {
+          "tasks": 8,
+          "passed": 1,
+          "success": 12.5
+        },
+        "impossible": {
+          "tasks": 8,
+          "passed": 6,
+          "success": 75
+        }
+      },
+      "metrics": {
+        "mean_steps": 3.5,
+        "self_repair_rate": 0.81,
+        "tool_error_rate": 0.086,
+        "provenance_valid_rate": 1,
+        "tokens_in": 1408984,
+        "tokens_out": 59434,
+        "mean_tokens_in": 14090,
+        "wall_ms": 18003,
+        "cache_hit_rate": 1
+      },
+      "failure_tags": {
+        "gave_up": 8,
+        "did_not_ask": 4
+      },
+      "failures": [
+        {
+          "id": "ch-07",
+          "category": "chart",
+          "tags": [
+            "gave_up"
+          ],
+          "detail": "outcome stopped"
+        },
+        {
+          "id": "ms-02",
+          "category": "multi_step",
+          "tags": [
+            "gave_up"
+          ],
+          "detail": "outcome stopped"
+        },
+        {
+          "id": "ms-06",
+          "category": "multi_step",
+          "tags": [
+            "gave_up"
+          ],
+          "detail": "outcome stopped"
+        },
+        {
+          "id": "amb-01",
+          "category": "ambiguous",
+          "tags": [
+            "did_not_ask"
+          ],
+          "detail": "outcome answer"
+        },
+        {
+          "id": "amb-02",
+          "category": "ambiguous",
+          "tags": [
+            "did_not_ask"
+          ],
+          "detail": "outcome answer"
+        },
+        {
+          "id": "amb-04",
+          "category": "ambiguous",
+          "tags": [
+            "gave_up"
+          ],
+          "detail": "outcome stopped"
+        },
+        {
+          "id": "amb-05",
+          "category": "ambiguous",
+          "tags": [
+            "did_not_ask"
+          ],
+          "detail": "outcome answer"
+        },
+        {
+          "id": "amb-06",
+          "category": "ambiguous",
+          "tags": [
+            "gave_up"
+          ],
+          "detail": "outcome stopped"
+        },
+        {
+          "id": "amb-07",
+          "category": "ambiguous",
+          "tags": [
+            "gave_up"
+          ],
+          "detail": "outcome stopped"
+        },
+        {
+          "id": "amb-08",
+          "category": "ambiguous",
+          "tags": [
+            "did_not_ask"
+          ],
+          "detail": "outcome answer"
+        },
+        {
+          "id": "imp-02",
+          "category": "impossible",
+          "tags": [
+            "gave_up"
+          ],
+          "detail": "outcome stopped"
+        },
+        {
+          "id": "imp-06",
+          "category": "impossible",
+          "tags": [
+            "gave_up"
+          ],
+          "detail": "outcome stopped"
+        }
+      ]
+    }
+  ],
+  "judge": {
+    "model": "gemini-3.5-flash-lite",
+    "cases": 30,
+    "judge_accuracy": 1,
+    "rule_accuracy": 0.8666666666666667,
+    "judge_rule_agreement": 0.8666666666666667,
+    "misses": [
+      "rule:j04",
+      "rule:j13",
+      "rule:j23",
+      "rule:j28"
+    ]
+  }
+}
