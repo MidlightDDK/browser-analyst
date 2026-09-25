@@ -95,7 +95,7 @@ the detector, are waiting on the free Gemini quota.
 | Measurement | Result | Target |
 | --- | --- | --- |
 | JS loaded before first paint | 102.5 KB gzipped (DuckDB, Pyodide, SheetJS, and Vega load on first use) | ≤ 300 KB, enforced by the build |
-| Lighthouse, Home, mobile (Lighthouse 13.5, simulated slow 4G) | Performance 98 · Accessibility 100 · Best practices 100 · SEO 91 | Performance ≥ 90 |
+| Lighthouse, Home, mobile (Lighthouse 13.5, simulated slow 4G) | Performance 99 · Accessibility 100 · Best practices 100 · SEO 100, in each of 3 runs (first paint 1.4 s) | Performance ≥ 90 |
 | 50 MB CSV (763,577 rows × 8 columns): load + profile | 1.53 s, median of 3 (load 0.75 s, profile 0.78 s) | < 5 s |
 | Aggregate query over that table (`GROUP BY` with `SUM`), through the agent's `run_sql` | 49 ms, median of 3 | < 300 ms |
 
