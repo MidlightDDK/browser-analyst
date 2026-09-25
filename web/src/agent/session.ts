@@ -3,7 +3,20 @@
 
 import { turnstileToken } from "./turnstile";
 
-let sessionUntil = 0;
+const KEY = "ba_session_until";
+
+// The cookie outlives page loads, so remember its expiry for this tab and skip
+// a new check after a reload. Storage can be unavailable; that only costs a
+// check.
+function stored(): number {
+  try {
+    return Number(sessionStorage.getItem(KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+let sessionUntil = stored();
 let pending: Promise<void> | null = null;
 
 const MESSAGES: Record<string, string> = {
@@ -32,6 +45,11 @@ async function newSession(
     );
   }
   sessionUntil = ((await res.json()) as { expiresAt: number }).expiresAt;
+  try {
+    sessionStorage.setItem(KEY, String(sessionUntil));
+  } catch {
+    // see stored()
+  }
 }
 
 /** Starts a session unless one is valid for another minute; shares in-flight work. */

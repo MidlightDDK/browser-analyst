@@ -17,8 +17,8 @@ describe("worker routing", () => {
     expect(body.toolsetVersion).toMatch(/^tools-v/);
     expect(body.promptVersion).toMatch(/^prompt-v/);
     expect(body.providers.map((p) => [p.id, p.configured, p.tools])).toEqual([
-      ["gemini", true, true],
       ["geminiLite", true, true],
+      ["gemini", true, true],
       ["groq", true, true],
       ["workersAi", true, true],
     ]);

@@ -35,8 +35,8 @@ milestones are in [docs/ROADMAP.md](docs/ROADMAP.md).
   tool result).
 - **The gateway** (`worker/`, a Cloudflare Worker) adds the system prompt and
   tool schemas server-side, requires a Turnstile-backed session, rate-limits,
-  and streams one step at a time from free tiers: Gemini 3.8 Flash, then Gemini
-  3.5 Flash-Lite, Groq (Qwen 3.8 27B), and Workers AI (gpt-oss-120b). It falls
+  and streams one step at a time from free tiers: Gemini 3.5 Flash-Lite, then
+  Gemini 3.8 Flash, Groq (Qwen 3.8 27B), and Workers AI (gpt-oss-120b). It falls
   through on 429, 5xx, or no first token within 8 s.
 - **What the model saw:** a drawer shows the exact payload of the last step,
   plus the prompt and tool schemas the gateway adds.
