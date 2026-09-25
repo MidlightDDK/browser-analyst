@@ -77,18 +77,21 @@ function limiter(rpm: number) {
 }
 
 /**
- * The cache key ignores `elapsed_ms` in tool results: query timings vary run
- * to run, and without this every step after the first would miss.
+ * The cache key ignores `elapsed_ms` in tool results and the random spotlight
+ * id: both vary run to run, and without this every step after the first would
+ * miss.
  */
 export function cacheKey(
   model: string,
   messages: readonly WireMessage[],
 ): string {
   const stable = messages.map((m) =>
-    m.role === "tool"
+    m.role === "tool" || m.role === "user"
       ? {
           ...m,
-          content: m.content.replace(/"elapsed_ms":\d+/g, '"elapsed_ms":0'),
+          content: m.content
+            .replace(/"elapsed_ms":\d+/g, '"elapsed_ms":0')
+            .replace(/<data id="[0-9a-f]+">/g, '<data id="x">'),
         }
       : m,
   );

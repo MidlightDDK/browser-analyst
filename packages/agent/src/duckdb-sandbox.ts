@@ -201,7 +201,10 @@ export abstract class DuckDBSandbox<H> implements Sandbox {
   }
 
   sql(query: string, opts: SqlOptions = {}): Promise<SqlResult> {
-    const guard = guardSql(query);
+    const guard =
+      opts.guard === false
+        ? { ok: true as const, sql: query.trim().replace(/;+\s*$/, "") }
+        : guardSql(query);
     if (!guard.ok)
       return Promise.resolve({
         error: `Rejected by the SQL guard: ${guard.reason}.`,

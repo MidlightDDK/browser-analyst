@@ -33,6 +33,9 @@ importers:
         specifier: 314.0.7
         version: 314.0.7
     devDependencies:
+      '@playwright/test':
+        specifier: ^1.63.0
+        version: 1.63.0
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

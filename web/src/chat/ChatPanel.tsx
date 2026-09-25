@@ -6,6 +6,10 @@ import {
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import type { Agent, PendingApproval, TurnView } from "../agent/useAgent";
 import { formatCount, formatMs } from "../format";
+import {
+  DefenseSettings,
+  DefensesOffBanner,
+} from "../security/DefenseSettings";
 import { FinalAnswer, type ResultSource } from "./FinalAnswer";
 import { Code } from "./SqlCode";
 import { StepCard } from "./StepCard";
@@ -222,6 +226,7 @@ export function ChatPanel({
       <h2 id="chat-heading" className="text-lg font-semibold">
         Ask the agent
       </h2>
+      <DefensesOffBanner defenses={agent.defenses} />
       {agent.turns.length === 0 && suggestions.length > 0 && (
         <div>
           <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -323,6 +328,11 @@ export function ChatPanel({
             Ask before running Python
           </label>
         </div>
+        <DefenseSettings
+          defenses={agent.defenses}
+          onChange={agent.setDefenses}
+          disabled={agent.running}
+        />
         <p className="text-xs text-slate-600 dark:text-slate-400">
           Sent to the model: table schemas and profiles, previews of at most 20
           rows per query, and this conversation. Your file stays in your

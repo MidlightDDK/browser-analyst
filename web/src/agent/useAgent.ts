@@ -6,6 +6,7 @@ import {
   type AgentSandbox,
   compactCatalog,
   DEFAULT_MAX_STEPS,
+  type Defenses,
   gatewayClient,
   type Outcome,
   type PythonApproval,
@@ -16,8 +17,10 @@ import {
   type TurnSummary,
   type Usage,
 } from "@browser-analyst/agent";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LoadedTable } from "../data/useDataSession";
+import { describeViolation, onCspViolation } from "../security/csp";
+import { initialDefenses } from "../security/defenses";
 import { ensureSession } from "./session";
 
 export interface ToolView {
@@ -128,6 +131,7 @@ export function useAgent({
   const [checkNeeded, setCheckNeeded] = useState(false);
   const [maxSteps, setMaxSteps] = useState(DEFAULT_MAX_STEPS);
   const [approvePython, setApprovePython] = useState(true);
+  const [defenses, setDefenses] = useState<Defenses>(initialDefenses);
   const [pendingApproval, setPendingApproval] =
     useState<PendingApproval | null>(null);
   const settleApproval = useRef<((ok: boolean) => void) | null>(null);
@@ -136,6 +140,36 @@ export function useAgent({
   const turnsRef = useRef(turns);
   turnsRef.current = turns;
   const nextId = useRef(1);
+  const turnStart = useRef(0);
+  const cspCount = useRef(0);
+
+  // A blocked request shows up in the latest turn's trace, even when it comes
+  // after the run (an image in a rendered answer).
+  useEffect(
+    () =>
+      onCspViolation((v) => {
+        const text = describeViolation(v);
+        const event: TraceEvent = {
+          stepId: `csp${++cspCount.current}`,
+          type: "security",
+          input: v,
+          outputPreview: text,
+          ok: false,
+          durationMs: 0,
+          at: Math.round(performance.now() - turnStart.current),
+        };
+        setTurns((ts) =>
+          ts.length
+            ? ts.map((t, i) =>
+                i === ts.length - 1
+                  ? { ...t, events: [...t.events, event] }
+                  : t,
+              )
+            : ts,
+        );
+      }),
+    [],
+  );
 
   /** The user clicked Run (true) or Don't run (false). */
   const decide = useCallback((ok: boolean) => {
@@ -159,6 +193,7 @@ export function useAgent({
       abortRef.current = ctrl;
       setRunning(true);
       const t0 = performance.now();
+      turnStart.current = t0;
       try {
         const sandbox = await getSandbox();
         // Any bot check happens before the loop, so step timings exclude it.
@@ -180,7 +215,7 @@ export function useAgent({
               tables.map((t) => ({ profile: t.profile, source: t.source })),
             ),
             priorTurns: prior,
-            settings: { maxSteps, approvePython },
+            settings: { maxSteps, approvePython, defenses },
           },
           {
             model,
@@ -221,7 +256,7 @@ export function useAgent({
         setCheckNeeded(false);
       }
     },
-    [getSandbox, tables, maxSteps, approvePython, decide],
+    [getSandbox, tables, maxSteps, approvePython, defenses, decide],
   );
 
   const stop = useCallback(() => {
@@ -241,6 +276,8 @@ export function useAgent({
     setMaxSteps,
     approvePython,
     setApprovePython,
+    defenses,
+    setDefenses,
     pendingApproval,
     decide,
   };

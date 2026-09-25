@@ -9,6 +9,9 @@ import {
   type PythonWorkerRequest,
   preparePyodide,
 } from "@browser-analyst/agent/python";
+import { forwardCspViolations } from "./csp-forward";
+
+forwardCspViolations("python");
 
 type LoadPyodide = (options: {
   indexURL: string;

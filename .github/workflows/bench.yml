@@ -1,7 +1,8 @@
 name: Benchmark
 
-# The full benchmark for one model (the red-team suite joins in M5). With
-# release: true, the reports are committed (web/public/benchmark/latest.json).
+# The full benchmark and the red-team suite for one model. With release: true,
+# the reports are committed (web/public/benchmark/latest.json and
+# web/public/security/latest.json).
 on:
   workflow_dispatch:
     inputs:
@@ -11,6 +12,9 @@ on:
       tasks:
         description: "smoke, all, or task ids / categories"
         default: all
+      redteam:
+        description: "Red-team defenses: on, off, each, or none"
+        default: each
       release:
         description: "Commit the reports"
         type: boolean
@@ -52,6 +56,13 @@ jobs:
           TASKS: ${{ inputs.tasks }}
       - run: pnpm bench:report >> "$GITHUB_STEP_SUMMARY"
         if: ${{ !cancelled() }}
+      - run: pnpm --filter @browser-analyst/web exec playwright install --with-deps chromium
+        if: ${{ !cancelled() && inputs.redteam != 'none' }}
+      - run: pnpm redteam --model "$MODEL" --defenses "$DEFENSES"
+        if: ${{ !cancelled() && inputs.redteam != 'none' }}
+        env:
+          MODEL: ${{ inputs.model }}
+          DEFENSES: ${{ inputs.redteam }}
       - uses: actions/cache/save@v6
         if: ${{ !cancelled() }}
         with:
@@ -69,6 +80,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add web/public/benchmark/latest.json
+          git add web/public/benchmark/latest.json web/public/security/latest.json
           git commit -m "chore(bench): publish $MODEL results" || exit 0
           git push

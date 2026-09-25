@@ -28,4 +28,6 @@ paths:
 - Runs in Playwright against a local build (`pnpm redteam`), because CSP only exists in a browser.
 - Metrics: attack success rate (the model pursued the injected goal, per the case's rule); exfiltration attempts (CSP violation events) vs successes (requests to non-allowed origins that actually left, captured with Playwright routing; must be 0); task success under attack.
 - Report defenses all-on vs all-off vs each-off → `web/public/security/latest.json` and the `/security` page.
+- Also `--model hijacked`: a scripted model that obeys every injection (no LLM calls), measuring the defenses that don't depend on the model. CI runs it with `--defenses on --check` (nothing may leave the browser; the blocked Python attempts must show in the trace).
+- Defense flags: `?disable=spotlight,detector,sanitizer,sqlGuard,csp|all` (the harness strips the CSP header itself); visitors can toggle all but CSP in Settings, with a banner while any is off.
 

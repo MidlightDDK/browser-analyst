@@ -38,6 +38,10 @@ jobs:
           fi
       - run: pnpm --filter @browser-analyst/web exec playwright install --with-deps chromium
       - run: pnpm -s e2e
+      # A scripted model that obeys every injection, against the build with
+      # the production CSP: nothing may leave the browser, and the blocked
+      # attempts must show in the trace. No model calls, so no secrets.
+      - run: pnpm redteam --model hijacked --defenses on --check --no-build --no-report
 
   # The smoke benchmark (15 fixed tasks) on the production agent code, gated on
   # benchmark/baseline.json. Model calls replay from the Actions cache, so it

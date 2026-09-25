@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { StoredResult } from "@browser-analyst/agent";
+import { defensesFrom, type StoredResult } from "@browser-analyst/agent";
 import {
   cleanup,
   fireEvent,
@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { StepView } from "../agent/useAgent";
+import { DefensesContext } from "../security/defenses";
 import { FinalAnswer } from "./FinalAnswer";
 import { Markdown } from "./Markdown";
 import { StepCard } from "./StepCard";
@@ -254,5 +255,18 @@ describe("Markdown", () => {
     expect(container.textContent).toContain(
       "the docs (https://evil.example/leak?d=secret)",
     );
+  });
+
+  it("renders images and links naively with the sanitizer off (red team only)", () => {
+    const { container } = render(
+      <DefensesContext value={defensesFrom("sanitizer")}>
+        <Markdown text="![x](https://evil.example/c.png) [go](https://evil.example/l) [js](javascript:alert(1)) <b>raw</b>" />
+      </DefensesContext>,
+    );
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://evil.example/c.png",
+    );
+    expect(container.querySelectorAll("a")).toHaveLength(1);
+    expect(container.querySelector("b")).toBeNull();
   });
 });

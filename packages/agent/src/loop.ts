@@ -25,6 +25,14 @@ import {
   type ModelStepResponse,
 } from "./model.ts";
 import type { Sandbox } from "./sandbox.ts";
+import { ALL_ON, type Defenses } from "./security/defenses.ts";
+import {
+  detectInjection,
+  detectorFlag,
+  injectionNote,
+  scanAnswer,
+} from "./security/detector.ts";
+import { protectToolContent, spotlightId } from "./security/spotlight.ts";
 import { TOOL_BY_NAME, TOOLS } from "./tools/schemas.ts";
 import { validateArgs } from "./tools/validate.ts";
 import {
@@ -54,6 +62,8 @@ export interface AgentSettings {
   maxSteps?: number;
   /** Ask deps.approvePython before each run_python (declined without it). */
   approvePython?: boolean;
+  /** All on by default; the red-team suite turns them off to measure them. */
+  defenses?: Partial<Defenses>;
 }
 
 export interface PythonApproval {
@@ -75,7 +85,7 @@ export interface RunInput {
 export interface TraceEvent {
   /** "3" for step 3's model call, "3.1" for its first tool call. */
   stepId: string;
-  type: "model" | "tool" | "answer" | "ask_user" | "stop";
+  type: "model" | "tool" | "answer" | "ask_user" | "stop" | "security";
   tool?: string;
   input: unknown;
   /** Full output for the UI (the model saw the compact form). */
@@ -132,6 +142,8 @@ export interface RunDeps {
   approvePython?: (req: PythonApproval) => Promise<boolean>;
   signal?: AbortSignal;
   now?: () => number;
+  /** The spotlight block id; random per run unless a test fixes it. */
+  spotlightId?: string;
 }
 
 interface ToolRun {
@@ -174,6 +186,10 @@ export async function runAgent(
   const lastError = new Map<string, string>();
   let rejectedAnswers = 0;
   const charts = new Map<string, ChartRecord>();
+  const defenses = { ...ALL_ON, ...input.settings?.defenses };
+  const dataId = defenses.spotlight
+    ? (deps.spotlightId ?? spotlightId())
+    : undefined;
 
   const emit = (e: Omit<TraceEvent, "at">) => {
     const event = { ...e, at: Math.round(now() - t0) };
@@ -279,7 +295,10 @@ export async function runAgent(
         }
       }
       case "run_sql": {
-        const result = await deps.sandbox.sql(String(args.sql));
+        const result = await deps.sandbox.sql(
+          String(args.sql),
+          defenses.sqlGuard ? undefined : { guard: false },
+        );
         if ("error" in result) return errorRun(args, result.error);
         const cols = result.columns.map((c) => c.name);
         return {
@@ -433,6 +452,23 @@ export async function runAgent(
     }
   };
 
+  const catalogSignals = defenses.detector
+    ? detectInjection(input.catalog)
+    : [];
+  if (catalogSignals.length)
+    emit({
+      stepId: "0",
+      type: "security",
+      input: { source: "catalog", signals: catalogSignals },
+      outputPreview: "The injection detector flagged the table catalog",
+      ok: false,
+      durationMs: 0,
+      securityFlags: [detectorFlag("catalog", catalogSignals)],
+    });
+  const catalogNote = catalogSignals.length
+    ? injectionNote(catalogSignals)
+    : undefined;
+
   for (let n = 1; n <= maxSteps; n++) {
     const stepId = String(n);
     if (deps.signal?.aborted) return stop("aborted", "Stopped.", stepId);
@@ -443,6 +479,8 @@ export async function runAgent(
       priorTurns: input.priorTurns,
       steps,
       finalNote: lastStep ? LAST_STEP_NOTE : undefined,
+      spotlightId: dataId,
+      catalogNote,
     });
 
     const started = now();
@@ -520,9 +558,13 @@ export async function runAgent(
                 output: null,
               }
             : await runTool(call, callId, lastStep);
+      const signals = defenses.detector ? detectInjection(run.content) : [];
       const entry: StepToolRecord = {
         call,
-        content: run.content,
+        content: protectToolContent(run.content, {
+          spotlightId: dataId,
+          signals,
+        }),
         summary: run.summary,
         ok: run.ok,
       };
@@ -541,11 +583,18 @@ export async function runAgent(
         outputPreview: run.summary,
         ok: run.ok,
         durationMs: Math.round(now() - toolStart - (run.waitedMs ?? 0)),
+        securityFlags: signals.length
+          ? [detectorFlag("tool output", signals)]
+          : undefined,
       });
       if (run.outcome && !outcome) outcome = run.outcome;
     }
 
     if (outcome) {
+      const answerSignals =
+        outcome.kind === "answer"
+          ? scanAnswer(outcome.answer.answer_markdown)
+          : [];
       emit({
         stepId,
         type: outcome.kind === "answer" ? "answer" : "ask_user",
@@ -559,6 +608,9 @@ export async function runAgent(
             : `asked: ${outcome.kind === "ask_user" ? outcome.question : ""}`,
         ok: outcome.kind !== "answer" || outcome.verified,
         durationMs: 0,
+        securityFlags: answerSignals.length
+          ? [`answer contains ${answerSignals.join(", ")} (never rendered)`]
+          : undefined,
       });
       return finish(outcome, stepId);
     }

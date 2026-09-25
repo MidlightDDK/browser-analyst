@@ -51,6 +51,11 @@ export interface SqlOptions {
   timeoutMs?: number;
   /** Rows kept in the result store (capped at MAX_RESULT_ROWS). */
   maxRows?: number;
+  /**
+   * false skips the statement guard (red-team measurements only); the engine
+   * lockdown and CSP still apply.
+   */
+  guard?: boolean;
 }
 
 export interface SqlSuccess {

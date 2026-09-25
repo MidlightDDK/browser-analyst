@@ -8,10 +8,12 @@ const LABEL: Record<TraceEvent["type"], string> = {
   answer: "Answer",
   ask_user: "Question",
   stop: "Stopped",
+  security: "Security",
 };
 
 function Row({ e }: { e: TraceEvent }) {
-  const failed = e.ok === false;
+  const security = e.type === "security";
+  const failed = e.ok === false && !security;
   const detail =
     e.type === "model"
       ? `${e.model ?? e.provider ?? ""}${e.outputPreview ? ` → ${e.outputPreview}` : ""}`
@@ -26,11 +28,14 @@ function Row({ e }: { e: TraceEvent }) {
       <div className="min-w-0">
         <p className="flex flex-wrap items-baseline gap-x-2">
           <span
-            className={`font-semibold ${failed ? "text-red-800 dark:text-red-300" : ""}`}
+            className={`font-semibold ${failed ? "text-red-800 dark:text-red-300" : security ? "text-amber-800 dark:text-amber-300" : ""}`}
           >
-            <span aria-hidden="true">{failed ? "✕ " : "✓ "}</span>
+            <span aria-hidden="true">
+              {security ? "⚑ " : failed ? "✕ " : "✓ "}
+            </span>
             <span className="sr-only">{failed ? "Failed: " : ""}</span>
-            {LABEL[e.type]} {e.stepId}
+            {LABEL[e.type]}
+            {security ? "" : ` ${e.stepId}`}
           </span>
           {e.durationMs > 0 && (
             <span className="text-slate-500 dark:text-slate-400">
@@ -45,8 +50,14 @@ function Row({ e }: { e: TraceEvent }) {
           )}
         </p>
         <p
-          className="truncate text-slate-700 dark:text-slate-300"
-          title={detail}
+          className={`truncate ${security ? "text-amber-800 dark:text-amber-300" : "text-slate-700 dark:text-slate-300"}`}
+          title={
+            security
+              ? String(
+                  (e.input as { blockedURI?: string })?.blockedURI ?? detail,
+                )
+              : detail
+          }
         >
           {detail}
         </p>

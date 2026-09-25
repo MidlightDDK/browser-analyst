@@ -60,3 +60,6 @@ declare const Response: {
   ): Response;
   json(data: unknown, init?: { status?: number }): Response;
 };
+declare const crypto: {
+  getRandomValues<T extends Uint8Array>(array: T): T;
+};

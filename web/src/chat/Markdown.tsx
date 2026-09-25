@@ -1,14 +1,23 @@
 // Model-written Markdown rendered as React text: raw HTML shows as text,
 // images are dropped, and links become plain text with the full URL visible,
-// so an answer can't load or link anything (output sanitization).
+// so an answer can't load or link anything (output sanitization). With the
+// sanitizer turned off (red-team measurements), images and links render the
+// way a naive Markdown renderer would, and only CSP stands in the way.
 
-import type { ReactNode } from "react";
+import { type ReactNode, useContext } from "react";
+import { DefensesContext } from "../security/defenses";
 
 // ![alt](url) | [text](url) | `code` | **bold** | __bold__ | *italic* | _italic_
 const INLINE =
   /!\[([^\]]*)\]\(([^)]*)\)|\[([^\]]+)\]\(([^)\s]*)[^)]*\)|`([^`]+)`|\*\*(.+?)\*\*|__(.+?)__|\*(?!\s)(.+?)\*|\b_(?!\s)(.+?)_\b/g;
 
-export function renderInline(text: string, key = "i"): ReactNode[] {
+const isWebUrl = (url: string) => /^https?:\/\//i.test(url);
+
+export function renderInline(
+  text: string,
+  key = "i",
+  sanitize = true,
+): ReactNode[] {
   const out: ReactNode[] = [];
   let last = 0;
   for (const m of text.matchAll(INLINE)) {
@@ -16,7 +25,17 @@ export function renderInline(text: string, key = "i"): ReactNode[] {
     if (at > last) out.push(text.slice(last, at));
     const k = `${key}.${at}`;
     const [, alt, , linkText, url, code, b1, b2, i1, i2] = m;
-    if (alt !== undefined)
+    if (!sanitize && alt !== undefined && isWebUrl(m[2] ?? ""))
+      out.push(
+        <img key={k} src={m[2]} alt={alt} className="inline max-h-40" />,
+      );
+    else if (!sanitize && linkText !== undefined && isWebUrl(url ?? ""))
+      out.push(
+        <a key={k} href={url} className="underline">
+          {linkText}
+        </a>,
+      );
+    else if (alt !== undefined)
       out.push(
         <span key={k} className="text-slate-500">
           [image removed{alt ? `: ${alt}` : ""}]
@@ -33,8 +52,10 @@ export function renderInline(text: string, key = "i"): ReactNode[] {
         </code>,
       );
     else if (b1 !== undefined || b2 !== undefined)
-      out.push(<strong key={k}>{renderInline(b1 ?? b2 ?? "", k)}</strong>);
-    else out.push(<em key={k}>{renderInline(i1 ?? i2 ?? "", k)}</em>);
+      out.push(
+        <strong key={k}>{renderInline(b1 ?? b2 ?? "", k, sanitize)}</strong>,
+      );
+    else out.push(<em key={k}>{renderInline(i1 ?? i2 ?? "", k, sanitize)}</em>);
     last = at + m[0].length;
   }
   if (last < text.length) out.push(text.slice(last));
@@ -85,6 +106,7 @@ function blocks(text: string): Block[] {
 }
 
 export function Markdown({ text }: { text: string }) {
+  const sanitize = useContext(DefensesContext).sanitizer;
   return (
     <div className="space-y-2 leading-relaxed">
       {blocks(text).map((b, i) => {
@@ -101,7 +123,7 @@ export function Markdown({ text }: { text: string }) {
                 {b.items.map((item, j) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: static text, never reordered
                   <li key={`${key}.${j}`}>
-                    {renderInline(item, `${key}.${j}`)}
+                    {renderInline(item, `${key}.${j}`, sanitize)}
                   </li>
                 ))}
               </List>
@@ -110,7 +132,7 @@ export function Markdown({ text }: { text: string }) {
           case "h":
             return (
               <p key={key} className="font-semibold">
-                {renderInline(b.lines.join(" "), key)}
+                {renderInline(b.lines.join(" "), key, sanitize)}
               </p>
             );
           case "pre":
@@ -123,7 +145,9 @@ export function Markdown({ text }: { text: string }) {
               </pre>
             );
           default:
-            return <p key={key}>{renderInline(b.lines.join(" "), key)}</p>;
+            return (
+              <p key={key}>{renderInline(b.lines.join(" "), key, sanitize)}</p>
+            );
         }
       })}
     </div>

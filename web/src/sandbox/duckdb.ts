@@ -22,6 +22,7 @@ import {
   Precision,
   Table,
 } from "apache-arrow";
+import { CSP_FORWARD_JS } from "./csp-forward";
 import { browserPythonRunner } from "./pyodide";
 
 const UPLOAD_ROOT = "uploads";
@@ -128,11 +129,15 @@ export class BrowserDuckDBSandbox extends DuckDBSandbox<Handle> {
     const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
     if (!bundle.mainWorker)
       throw new Error("No DuckDB-WASM worker for this browser");
-    // A same-origin blob worker that pulls the CDN script (cross-origin workers are not allowed).
+    // A same-origin blob worker that pulls the CDN script (cross-origin
+    // workers are not allowed) after hooking up CSP-violation forwarding.
     const workerUrl = URL.createObjectURL(
-      new Blob([`importScripts(${JSON.stringify(bundle.mainWorker)});`], {
-        type: "text/javascript",
-      }),
+      new Blob(
+        [
+          `${CSP_FORWARD_JS}\nimportScripts(${JSON.stringify(bundle.mainWorker)});`,
+        ],
+        { type: "text/javascript" },
+      ),
     );
     const db = new duckdb.AsyncDuckDB(
       new duckdb.VoidLogger(),
