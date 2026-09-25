@@ -12,10 +12,34 @@ browser: only schemas, small previews, and the conversation go to the model.
 
 ## Status
 
-The data layer (milestone M1) is live: open a sample or your own CSV, TSV,
-Parquet, JSON, or Excel file, and DuckDB-WASM loads and profiles it inside the
-tab. The agent comes next; the milestones are in
-[docs/ROADMAP.md](docs/ROADMAP.md).
+The agent (milestone M2) works end to end: open a sample or your own CSV, TSV,
+Parquet, JSON, or Excel file, ask a question, and watch the agent plan, run SQL
+in your browser, recover from its errors, and answer with numbers checked
+against the results that produced them. Charts and Python come next; the
+milestones are in [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Agent
+
+- **Results by reference, not by value.** Every query result stays in the
+  browser (up to 100,000 rows each). The model sees only the columns, the row
+  count, and at most 20 preview rows, and cites results by id (`r3`).
+- **Checked numbers.** `final_answer` lists each key number with the result
+  cell it came from (`r3.mean_mass`, row 0), and the app compares them,
+  allowing for rounding. On a mismatch the model gets one chance to fix it;
+  after that the answer carries a visible warning. Click a number to see its
+  cell and the query behind it.
+- **The loop** (`packages/agent/src/loop.ts`) stops on `final_answer`, on
+  `ask_user`, at the step cap (8 by default, 12 at most), or after 3 failures
+  in a row of the same tool. Each step sends the last 3 steps verbatim and one
+  line per older step, within the gateway caps (24 messages, 24 KB, 4 KB per
+  tool result).
+- **The gateway** (`worker/`, a Cloudflare Worker) adds the system prompt and
+  tool schemas server-side, requires a Turnstile-backed session, rate-limits,
+  and streams one step at a time from free tiers: Gemini 3.8 Flash, then Gemini
+  3.5 Flash-Lite, Groq (Qwen 3.8 27B), and Workers AI (gpt-oss-120b). It falls
+  through on 429, 5xx, or no first token within 8 s.
+- **What the model saw:** a drawer shows the exact payload of the last step,
+  plus the prompt and tool schemas the gateway adds.
 
 ## Data layer
 

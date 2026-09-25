@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./sandbox.contract": "./src/sandbox.contract.ts"
+    "./sandbox.contract": "./src/sandbox.contract.ts",
+    "./gateway": "./src/gateway.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

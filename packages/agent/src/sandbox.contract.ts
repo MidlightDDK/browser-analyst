@@ -471,6 +471,12 @@ export const contractCases: ContractCase[] = [
         /nope/,
         "unknown column",
       );
+      // Plain text in both engines, never pointing into the capSql wrapper.
+      failure(
+        await sb.sql("SELECT sum(CASE WHEN"),
+        /^Parser Error: syntax error[\s\S]*end of the query \(an unclosed parenthesis/,
+        "unfinished query",
+      );
       failure(await sb.sql("DROP TABLE people"), /SQL guard/, "drop");
       failure(
         await sb.sql("SELECT 1; DROP TABLE people"),

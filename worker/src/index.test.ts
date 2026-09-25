@@ -1,24 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import type { Env } from "./env";
-import worker from "./index";
-
-const ORIGIN = "https://browser-analyst.test";
-
-function makeEnv(overrides: Partial<Env> = {}) {
-  const env = {
-    ASSETS: { fetch: vi.fn(async () => new Response("<html></html>")) },
-    AI: { run: vi.fn() },
-    RL_STEP: { limit: vi.fn(async () => ({ success: true })) },
-    RL_OTHER: { limit: vi.fn(async () => ({ success: true })) },
-    GROQ_API_KEY: "test-groq-key",
-    GEMINI_API_KEY: "test-gemini-key",
-    ...overrides,
-  };
-  return env as unknown as Env & { ASSETS: { fetch: typeof env.ASSETS.fetch } };
-}
-
-const call = (request: Request, env: Env = makeEnv()) =>
-  worker.fetch(request as Request<unknown, IncomingRequestCfProperties>, env);
+import { describe, expect, it } from "vitest";
+import { call, makeEnv, ORIGIN } from "./testing";
 
 describe("worker routing", () => {
   it("GET /api/health reports versions and providers without secrets", async () => {
@@ -29,14 +10,17 @@ describe("worker routing", () => {
     const body = (await res.json()) as {
       status: string;
       toolsetVersion: string;
-      providers: { id: string; configured: boolean }[];
+      promptVersion: string;
+      providers: { id: string; configured: boolean; tools: boolean }[];
     };
     expect(body.status).toBe("ok");
     expect(body.toolsetVersion).toMatch(/^tools-v/);
-    expect(body.providers).toEqual([
-      { id: "workersAi", configured: true },
-      { id: "groq", configured: true },
-      { id: "gemini", configured: true },
+    expect(body.promptVersion).toMatch(/^prompt-v/);
+    expect(body.providers.map((p) => [p.id, p.configured, p.tools])).toEqual([
+      ["gemini", true, true],
+      ["geminiLite", true, true],
+      ["groq", true, true],
+      ["workersAi", true, true],
     ]);
     expect(JSON.stringify(body)).not.toContain("test-groq-key");
   });

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAgent } from "./agent/useAgent";
 import { type PendingFile, useDataSession } from "./data/useDataSession";
 import { Dropzone } from "./home/Dropzone";
 import { SampleGallery } from "./home/SampleGallery";
@@ -23,9 +24,14 @@ function sampleFile(sample: Sample): PendingFile {
 
 export function App() {
   const session = useDataSession();
+  const agent = useAgent(session);
   const [view, setView] = useState<"home" | "workspace">("home");
-  const open = (files: PendingFile[]) => {
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [draft, setDraft] = useState("");
+  const open = (files: PendingFile[], sample?: Sample, question = "") => {
     setView("workspace");
+    if (sample) setSuggestions(sample.questions);
+    setDraft(question);
     void session.addFiles(files);
   };
 
@@ -39,6 +45,10 @@ export function App() {
           onFiles={(files) => void session.addFiles(files)}
           onHome={() => setView("home")}
           tableRows={session.tableRows}
+          agent={agent}
+          suggestions={suggestions}
+          draft={draft}
+          getResult={(id) => session.sandbox?.getResult(id)}
         />
       ) : (
         <main className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12 sm:py-16">
@@ -56,8 +66,8 @@ export function App() {
               with numbers traceable to the exact query that produced them.
             </p>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Available now: load and profile data locally. The agent arrives in
-              the next milestone.{" "}
+              Only schemas, profiles, and previews of at most 20 rows reach the
+              model.{" "}
               <a
                 href={REPO}
                 className="font-medium underline underline-offset-4"
@@ -66,7 +76,9 @@ export function App() {
               </a>
             </p>
           </header>
-          <SampleGallery onOpen={(s) => open([sampleFile(s)])} />
+          <SampleGallery
+            onOpen={(s, question) => open([sampleFile(s)], s, question)}
+          />
           <Dropzone onFiles={open} />
           {session.tables.length > 0 && (
             <button

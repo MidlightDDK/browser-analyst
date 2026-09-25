@@ -53,6 +53,35 @@ export function capSql(sql: string, rows: number): string {
   return `SELECT * FROM (\n${sql}\n) LIMIT ${rows}`;
 }
 
+/**
+ * A DuckDB error as the model should see it: plain text in both engines
+ * (DuckDB-WASM reports JSON), with line numbers of its own query rather than
+ * of the capSql wrapper around it.
+ */
+export function cleanSqlError(raw: string): string {
+  let msg = raw;
+  try {
+    const j = JSON.parse(raw) as {
+      exception_type?: string;
+      exception_message?: string;
+    };
+    if (typeof j?.exception_message === "string")
+      msg = `${j.exception_type ?? "SQL"} Error: ${j.exception_message}`;
+  } catch {
+    // already plain text
+  }
+  msg = msg
+    .replace(
+      /LINE \d+: \) LIMIT \d+(\n *\^)?/g,
+      "at the end of the query (an unclosed parenthesis or an unfinished expression?)",
+    )
+    .replace(
+      /LINE (\d+):/g,
+      (_, n: string) => `LINE ${Math.max(1, Number(n) - 1)}:`,
+    );
+  return msg.slice(0, ERROR_CHARS);
+}
+
 export abstract class DuckDBSandbox<H> implements Sandbox {
   /** Trusted, app-written SQL with canonical rows (no guard, no cap). */
   protected abstract exec(
@@ -191,8 +220,11 @@ export abstract class DuckDBSandbox<H> implements Sandbox {
           return {
             error: `The query timed out after ${timeoutMs / 1000} s and was cancelled. Aggregate or filter more.`,
           };
-        const message = err instanceof Error ? err.message : String(err);
-        return { error: message.slice(0, ERROR_CHARS) };
+        return {
+          error: cleanSqlError(
+            err instanceof Error ? err.message : String(err),
+          ),
+        };
       }
     });
   }
