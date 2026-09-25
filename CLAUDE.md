@@ -117,7 +117,7 @@ When compacting, keep: the goal, current milestone, decisions and constraints, f
 ## Milestone status (tick only when every acceptance box for that milestone passes)
 - [x] M0 Scaffold + hello-world deploy
 - [x] M1 Data layer: files → DuckDB-WASM → profiles
-- [ ] M2 Agent core + gateway + chat/trace UI
+- [x] M2 Agent core + gateway + chat/trace UI
 - [ ] M3 Charts + Python sandbox + approvals
 - [ ] M4 Benchmark v1 + CI gate
 - [ ] M5 Security defenses + red-team suite
