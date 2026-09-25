@@ -89,6 +89,8 @@ test("a sample question runs through the agent to a verified answer", async ({
       : route.fulfill({ status: 503, json: { reason: "quota" } });
   });
 
+  // Without its recording, a sample question fills the box for a live run.
+  await page.route("**/replays/**", (route) => route.fulfill({ json: {} }));
   await page.goto("/");
   await page.getByRole("button", { name: QUESTION }).click();
   await expect(
@@ -155,6 +157,8 @@ test("an exhausted quota shows a friendly message, not an error", async ({
   await page.route("**/api/agent/step", (route) =>
     route.fulfill({ status: 503, json: { reason: "quota" } }),
   );
+  // Without its recording, a sample question fills the box for a live run.
+  await page.route("**/replays/**", (route) => route.fulfill({ json: {} }));
   await page.goto("/");
   await page.getByRole("button", { name: QUESTION }).click();
   await expect(

@@ -3,9 +3,18 @@ import {
   type Outcome,
   type StoredResult,
 } from "@browser-analyst/agent";
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import {
+  type FormEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import type { Agent, PendingApproval, TurnView } from "../agent/useAgent";
 import { formatCount, formatMs } from "../format";
+import { fetchReplay } from "../replay/player";
+import { replayIdFor } from "../samples";
 import {
   DefenseSettings,
   DefensesOffBanner,
@@ -61,10 +70,89 @@ function ApprovalCard({
   );
 }
 
+/** Where each result id came from, searching only these turns. */
+function sourceIn(turns: readonly TurnView[]) {
+  return (id: string): ResultSource | undefined => {
+    for (const t of turns)
+      for (const s of t.steps)
+        for (const tool of s.tools) {
+          const out = tool.output as { result_id?: string } | null;
+          if (!tool.ok || out?.result_id !== id) continue;
+          const input = tool.input as { sql?: string; code?: string };
+          if (tool.tool === "run_sql")
+            return { language: "sql", code: String(input.sql ?? "") };
+          if (tool.tool === "run_python")
+            return { language: "python", code: String(input.code ?? "") };
+        }
+    return undefined;
+  };
+}
+
+const SPEEDS = [1, 2] as const;
+
+function ReplayBanner({
+  turn,
+  playing,
+  agent,
+  ready,
+}: {
+  turn: TurnView;
+  playing: boolean;
+  agent: Agent;
+  ready: boolean;
+}) {
+  const r = turn.replay;
+  if (!r) return null;
+  const button =
+    "rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800";
+  return (
+    <section
+      aria-label="Replay"
+      className="flex flex-wrap items-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-sm text-violet-950 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-100"
+    >
+      <p className="mr-auto">
+        <span aria-hidden="true">⏵ </span>
+        Replay of a real run: <strong>{r.model}</strong>,{" "}
+        {r.recordedAt.slice(0, 10)}
+      </p>
+      {playing && (
+        <>
+          {SPEEDS.map((sp) => (
+            <button
+              key={sp}
+              type="button"
+              aria-pressed={agent.replaySpeed === sp}
+              onClick={() => agent.setReplaySpeed(sp)}
+              className={`${button} ${agent.replaySpeed === sp ? "bg-violet-200 dark:bg-violet-900" : ""}`}
+            >
+              {sp}×
+            </button>
+          ))}
+          <button type="button" onClick={agent.skipReplay} className={button}>
+            Skip to the end
+          </button>
+        </>
+      )}
+      <button
+        type="button"
+        disabled={agent.running || !ready}
+        title={ready ? undefined : "The data is still loading"}
+        onClick={() => void agent.ask(turn.question)}
+        className="rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+      >
+        Run live
+      </button>
+    </section>
+  );
+}
+
 function Stopped({
   outcome,
+  onWatchReplay,
 }: {
   outcome: Extract<Outcome, { kind: "stopped" }>;
+  /** Set when a recording of this question exists. */
+  onWatchReplay?: () => void;
 }) {
   const friendly =
     outcome.errorReason === "quota" || outcome.errorReason === "rate_limit";
@@ -79,6 +167,18 @@ function Stopped({
     >
       <span aria-hidden="true">{friendly ? "ℹ " : "⚠ "}</span>
       {outcome.message}
+      {friendly && onWatchReplay && (
+        <>
+          {" "}
+          <button
+            type="button"
+            onClick={onWatchReplay}
+            className="font-medium underline underline-offset-2"
+          >
+            Watch a recorded run of this question
+          </button>
+        </>
+      )}
     </p>
   );
 }
@@ -91,6 +191,8 @@ function Turn({
   sourceFor,
   approval,
   decide,
+  banner,
+  onWatchReplay,
 }: {
   turn: TurnView;
   live: boolean;
@@ -99,6 +201,8 @@ function Turn({
   sourceFor: (id: string) => ResultSource | undefined;
   approval: PendingApproval | null;
   decide: (ok: boolean) => void;
+  banner?: ReactNode;
+  onWatchReplay?: () => void;
 }) {
   const o = turn.outcome;
   const chartsInAnswer = new Set(
@@ -106,6 +210,7 @@ function Turn({
   );
   return (
     <li className="space-y-3">
+      {banner}
       <p className="ml-auto w-fit max-w-[90%] rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white">
         <span className="sr-only">You asked: </span>
         {turn.question}
@@ -164,7 +269,9 @@ function Turn({
           </p>
         </section>
       )}
-      {o?.kind === "stopped" && <Stopped outcome={o} />}
+      {o?.kind === "stopped" && (
+        <Stopped outcome={o} onWatchReplay={onWatchReplay} />
+      )}
       {o && turn.usage && (
         <p className="text-xs text-slate-500 dark:text-slate-400">
           {turn.steps.length} step{turn.steps.length === 1 ? "" : "s"} ·{" "}
@@ -196,22 +303,17 @@ export function ChatPanel({
   const [text, setText] = useState(draft);
   useEffect(() => setText(draft), [draft]);
 
-  const sourceFor = useCallback(
-    (id: string): ResultSource | undefined => {
-      for (const t of agent.turns)
-        for (const s of t.steps)
-          for (const tool of s.tools) {
-            const out = tool.output as { result_id?: string } | null;
-            if (!tool.ok || out?.result_id !== id) continue;
-            const input = tool.input as { sql?: string; code?: string };
-            if (tool.tool === "run_sql")
-              return { language: "sql", code: String(input.sql ?? "") };
-            if (tool.tool === "run_python")
-              return { language: "python", code: String(input.code ?? "") };
-          }
-      return undefined;
-    },
+  const liveSourceFor = useMemo(
+    () => sourceIn(agent.turns.filter((t) => !t.replay)),
     [agent.turns],
+  );
+  const { playReplay } = agent;
+  const watchReplay = useCallback(
+    async (id: string) => {
+      const r = await fetchReplay(id);
+      if (r) playReplay(r);
+    },
+    [playReplay],
   );
 
   const submit = (e: FormEvent) => {
@@ -247,18 +349,38 @@ export function ChatPanel({
         </div>
       )}
       <ol className="space-y-6">
-        {agent.turns.map((t, i) => (
-          <Turn
-            key={t.id}
-            turn={t}
-            live={agent.running && i === agent.turns.length - 1}
-            ask={(q) => void agent.ask(q)}
-            getResult={getResult}
-            sourceFor={sourceFor}
-            approval={agent.pendingApproval}
-            decide={agent.decide}
-          />
-        ))}
+        {agent.turns.map((t, i) => {
+          const last = i === agent.turns.length - 1;
+          const results = t.results;
+          const replayId = t.replay ? undefined : replayIdFor(t.question);
+          return (
+            <Turn
+              key={t.id}
+              turn={t}
+              live={(agent.running || agent.replaying) && last}
+              ask={(q) => void agent.ask(q)}
+              getResult={
+                results ? (id) => results.find((r) => r.id === id) : getResult
+              }
+              sourceFor={t.replay ? sourceIn([t]) : liveSourceFor}
+              approval={agent.pendingApproval}
+              decide={agent.decide}
+              banner={
+                t.replay && (
+                  <ReplayBanner
+                    turn={t}
+                    playing={agent.replaying && last}
+                    agent={agent}
+                    ready={ready}
+                  />
+                )
+              }
+              onWatchReplay={
+                replayId ? () => void watchReplay(replayId) : undefined
+              }
+            />
+          );
+        })}
       </ol>
       {agent.checkNeeded && (
         <p role="status" className="text-sm">

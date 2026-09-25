@@ -87,6 +87,11 @@ export function TracePanel({ turns }: { turns: TurnView[] }) {
         turns.map((t) => (
           <div key={t.id}>
             <h3 className="truncate text-sm font-medium" title={t.question}>
+              {t.replay && (
+                <span className="mr-1 rounded bg-violet-100 px-1.5 text-xs text-violet-900 dark:bg-violet-900 dark:text-violet-100">
+                  Replay · {t.replay.model}
+                </span>
+              )}
               {t.question}
             </h3>
             {t.usage && (

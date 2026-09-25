@@ -17,6 +17,8 @@ for (const { sample, question } of questions) {
   test(`live: ${question}`, async ({ page }) => {
     test.setTimeout(240_000);
     const errors = trackErrors(page);
+    // Without its recording, a sample question fills the box for a live run.
+    await page.route("**/replays/**", (route) => route.fulfill({ json: {} }));
     await page.goto("/");
     await page.getByRole("button", { name: question }).click();
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible({

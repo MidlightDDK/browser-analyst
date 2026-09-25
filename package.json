@@ -20,7 +20,7 @@
     "bench:report": "node benchmark/src/report.ts",
     "bench:judge": "node --use-system-ca --env-file-if-exists=.env benchmark/src/judge.ts",
     "redteam": "node --use-system-ca --env-file-if-exists=.env benchmark/redteam/run.ts",
-    "replay:record": "echo replay:record is not implemented until M6",
+    "replay:record": "node --use-system-ca --env-file-if-exists=.env benchmark/src/replay-record.ts",
     "build": "pnpm --filter @browser-analyst/web build && pnpm --filter @browser-analyst/worker build",
     "deploy": "pnpm build && pnpm --filter @browser-analyst/worker run deploy"
   },

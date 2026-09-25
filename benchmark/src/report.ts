@@ -2,11 +2,14 @@
 // Prints a markdown report of the newest run (or --dir), per model.
 // --gate: exit 1 unless smoke success >= baseline smoke success - 5 points.
 // --baseline: record this complete full run as benchmark/baseline.json.
-// Complete full runs (--tasks all) also write web/public/benchmark/latest.json.
+// A complete full run (--tasks all) also rewrites web/public/benchmark/latest.json
+// from each model's newest complete full run of the current prompt and toolset,
+// so models benchmarked on different days share one leaderboard.
 
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
+import { PROMPT_VERSION, TOOLSET_VERSION } from "@browser-analyst/agent";
 import { BENCH_DIR, ROOT } from "./datasets.ts";
 import {
   type Baseline,
@@ -26,13 +29,66 @@ const { values } = parseArgs({
   },
 });
 
+const RESULTS = `${BENCH_DIR}results/`;
+
+/** Timestamped run directories, oldest first (red-team runs live elsewhere). */
+async function runDirs(): Promise<string[]> {
+  if (!existsSync(RESULTS)) return [];
+  return (await readdir(RESULTS)).filter((d) => /^\d{4}-/.test(d)).sort();
+}
+
+async function readRecords(dir: string, model: string): Promise<TaskRecord[]> {
+  return (await readFile(`${dir}${model}.jsonl`, "utf8"))
+    .split("\n")
+    .filter((l) => l.trim())
+    .map((l) => JSON.parse(l) as TaskRecord);
+}
+
+const LATEST = `${ROOT}web/public/benchmark/latest.json`;
+const current = (s: Summary) =>
+  s.prompt_version === PROMPT_VERSION && s.toolset_version === TOOLSET_VERSION;
+
+/**
+ * Per model, the newest complete full run of the current versions. Models with
+ * no such run here (CI only has its own) keep their published entry.
+ */
+async function leaderboard() {
+  const seen = new Map<string, Summary & { failures: unknown[] }>();
+  for (const d of (await runDirs()).reverse()) {
+    const dir = `${RESULTS}${d}/`;
+    for (const f of await readdir(dir)) {
+      if (!f.endsWith(".summary.json")) continue;
+      const s = JSON.parse(await readFile(`${dir}${f}`, "utf8")) as Summary;
+      if (seen.has(s.model) || s.split !== "all" || !s.complete || !current(s))
+        continue;
+      const failures = (await readRecords(dir, s.model))
+        .filter((r) => !r.pass)
+        .map((r) => ({
+          id: r.id,
+          category: r.category,
+          tags: r.tags,
+          detail: r.detail.slice(0, 200),
+        }));
+      seen.set(s.model, { ...s, failures });
+    }
+  }
+  if (existsSync(LATEST)) {
+    const old = JSON.parse(await readFile(LATEST, "utf8")) as {
+      models: (Summary & { failures: unknown[] })[];
+    };
+    for (const m of old.models)
+      if (!seen.has(m.model) && current(m)) seen.set(m.model, m);
+  }
+  return [...seen.values()].sort(
+    (a, b) => b.overall.success - a.overall.success,
+  );
+}
+
 async function newestRun(): Promise<string> {
-  const root = `${BENCH_DIR}results/`;
-  const dirs = existsSync(root) ? (await readdir(root)).sort() : [];
-  const last = dirs.at(-1);
+  const last = (await runDirs()).at(-1);
   if (!last)
     throw new Error("no runs in benchmark/results/: run pnpm bench first");
-  return `${root}${last}/`;
+  return `${RESULTS}${last}/`;
 }
 
 const dir = values.dir
@@ -48,7 +104,7 @@ const pct = (v: number | null) =>
   v === null ? "n/a" : `${Math.round(v * 1000) / 10}%`;
 const out: string[] = [];
 let gateFailed = false;
-const published: Summary[] = [];
+let published = false;
 
 for (const file of files) {
   const s = JSON.parse(await readFile(`${dir}${file}`, "utf8")) as Summary;
@@ -105,7 +161,7 @@ for (const file of files) {
   }
   out.push("");
 
-  if (full && s.complete) published.push(s);
+  if (full && s.complete) published = true;
   if (values.baseline) {
     if (!full || !s.complete)
       throw new Error("--baseline needs a complete run of --tasks all");
@@ -124,14 +180,15 @@ for (const file of files) {
   }
 }
 
-if (published.length) {
+if (published) {
   const judge = existsSync(`${BENCH_DIR}judge.json`)
     ? JSON.parse(await readFile(`${BENCH_DIR}judge.json`, "utf8"))
     : null;
+  const models = await leaderboard();
   await mkdir(`${ROOT}web/public/benchmark/`, { recursive: true });
   await writeFile(
-    `${ROOT}web/public/benchmark/latest.json`,
-    `${JSON.stringify({ generated_at: new Date().toISOString(), models: published, judge }, null, 2)}\n`,
+    LATEST,
+    `${JSON.stringify({ generated_at: new Date().toISOString(), models, judge }, null, 2)}\n`,
   );
 }
 

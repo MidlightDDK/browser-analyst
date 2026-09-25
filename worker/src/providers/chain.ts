@@ -1,5 +1,5 @@
 import type { Env } from "../env";
-import { gemini, geminiLite, groq } from "./openaiCompat";
+import { gemini, gemini31Lite, geminiLite, gemma4, groq } from "./openaiCompat";
 import {
   CHAIN,
   COLD_MS,
@@ -19,6 +19,8 @@ export const PROVIDERS: Record<ProviderId, Provider> = {
   geminiLite,
   groq,
   workersAi,
+  gemini31Lite,
+  gemma4,
 };
 
 /** Provider → time until which it is skipped. Per isolate, best effort. */

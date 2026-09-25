@@ -10,8 +10,10 @@ import {
   gatewayClient,
   type Outcome,
   type PythonApproval,
+  type Replay,
   runAgent,
   type StepRequestBody,
+  type StoredResult,
   summarizeAnswer,
   type TraceEvent,
   type TurnSummary,
@@ -19,6 +21,7 @@ import {
 } from "@browser-analyst/agent";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LoadedTable } from "../data/useDataSession";
+import { ReplayPlayer } from "../replay/player";
 import { describeViolation, onCspViolation } from "../security/csp";
 import { initialDefenses } from "../security/defenses";
 import { ensureSession } from "./session";
@@ -56,6 +59,9 @@ export interface TurnView {
   outcome?: Outcome;
   usage?: Usage;
   durationMs?: number;
+  /** Set on a played-back recording; its results come with it. */
+  replay?: { id: string; provider: string; model: string; recordedAt: string };
+  results?: StoredResult[];
 }
 
 function turnSummary(t: TurnView): TurnSummary | null {
@@ -142,6 +148,12 @@ export function useAgent({
   const nextId = useRef(1);
   const turnStart = useRef(0);
   const cspCount = useRef(0);
+  const player = useRef<ReplayPlayer | null>(null);
+  const [replaying, setReplaying] = useState(false);
+  const [replaySpeed, setReplaySpeedState] = useState(1);
+  const speedRef = useRef(replaySpeed);
+
+  useEffect(() => () => player.current?.stop(), []);
 
   // A blocked request shows up in the latest turn's trace, even when it comes
   // after the run (an image in a rendered answer).
@@ -181,10 +193,13 @@ export function useAgent({
   const ask = useCallback(
     async (question: string) => {
       if (abortRef.current || !question.trim()) return;
+      player.current?.skip();
       const id = nextId.current++;
       const update = (fn: (t: TurnView) => TurnView) =>
         setTurns((ts) => ts.map((t) => (t.id === id ? fn(t) : t)));
+      // A replay's result ids belong to the recording, not this session.
       const prior = turnsRef.current.flatMap((t) => {
+        if (t.replay) return [];
         const s = turnSummary(t);
         return s ? [s] : [];
       });
@@ -264,6 +279,62 @@ export function useAgent({
     decide(false);
   }, [decide]);
 
+  /** Plays a recorded run as a new turn; no model or sandbox involved. */
+  const playReplay = useCallback((r: Replay) => {
+    if (abortRef.current) return;
+    player.current?.skip();
+    const id = nextId.current++;
+    const update = (fn: (t: TurnView) => TurnView) =>
+      setTurns((ts) => ts.map((t) => (t.id === id ? fn(t) : t)));
+    setTurns((ts) => [
+      ...ts,
+      {
+        id,
+        question: r.question,
+        steps: [],
+        events: [],
+        replay: {
+          id: r.id,
+          provider: r.provider,
+          model: r.model,
+          recordedAt: r.recorded_at,
+        },
+        results: r.results,
+      },
+    ]);
+    const p = new ReplayPlayer(
+      r.events,
+      r.durationMs,
+      {
+        event: (e) => update((t) => applyEvent(t, e)),
+        done: () => {
+          update((t) => ({
+            ...t,
+            outcome: r.outcome,
+            usage: r.usage,
+            durationMs: r.durationMs,
+          }));
+          if (player.current === p) {
+            player.current = null;
+            setReplaying(false);
+          }
+        },
+      },
+      speedRef.current,
+    );
+    player.current = p;
+    setReplaying(true);
+    p.start();
+  }, []);
+
+  const setReplaySpeed = useCallback((speed: number) => {
+    speedRef.current = speed;
+    setReplaySpeedState(speed);
+    player.current?.setSpeed(speed);
+  }, []);
+
+  const skipReplay = useCallback(() => player.current?.skip(), []);
+
   return {
     turns,
     running,
@@ -280,6 +351,11 @@ export function useAgent({
     setDefenses,
     pendingApproval,
     decide,
+    replaying,
+    replaySpeed,
+    playReplay,
+    setReplaySpeed,
+    skipReplay,
   };
 }
 

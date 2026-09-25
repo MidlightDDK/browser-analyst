@@ -2,7 +2,9 @@ import { parseSSE, type Usage } from "@browser-analyst/agent/gateway";
 import type { Env } from "../env";
 import {
   GEMINI,
+  GEMINI_31_LITE,
   GEMINI_LITE,
+  GEMMA_4,
   GROQ,
   type OpenAiCompatible,
   type ProviderId,
@@ -227,6 +229,18 @@ export const gemini = openAiCompatible(
 export const geminiLite = openAiCompatible(
   "geminiLite",
   GEMINI_LITE,
+  (env) => env.GEMINI_API_KEY,
+  "gemini",
+);
+export const gemini31Lite = openAiCompatible(
+  "gemini31Lite",
+  GEMINI_31_LITE,
+  (env) => env.GEMINI_API_KEY,
+  "gemini",
+);
+export const gemma4 = openAiCompatible(
+  "gemma4",
+  GEMMA_4,
   (env) => env.GEMINI_API_KEY,
   "gemini",
 );

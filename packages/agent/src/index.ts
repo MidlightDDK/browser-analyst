@@ -10,6 +10,7 @@ export * from "./model.ts";
 export * from "./profile.ts";
 export * from "./prompts/system.ts";
 export * from "./python.ts";
+export * from "./replay.ts";
 export * from "./sandbox.ts";
 export * from "./security/defenses.ts";
 export * from "./security/detector.ts";

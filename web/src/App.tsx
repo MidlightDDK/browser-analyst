@@ -4,7 +4,8 @@ import { type PendingFile, useDataSession } from "./data/useDataSession";
 import { Dropzone } from "./home/Dropzone";
 import { HackCard } from "./home/HackCard";
 import { SampleGallery } from "./home/SampleGallery";
-import type { Sample } from "./samples";
+import { fetchReplay } from "./replay/player";
+import { replayIdFor, type Sample } from "./samples";
 import { DefensesContext } from "./security/defenses";
 import { Workspace } from "./workspace/Workspace";
 
@@ -30,11 +31,19 @@ export function App() {
   const [view, setView] = useState<"home" | "workspace">("home");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
+  const { playReplay } = agent;
   const open = (files: PendingFile[], sample?: Sample, question = "") => {
     setView("workspace");
     if (sample) setSuggestions(sample.questions);
-    setDraft(question);
+    // A gallery question plays its recorded run while the data loads; without
+    // a recording it just fills the question box.
+    const replayId = replayIdFor(question);
+    setDraft(replayId ? "" : question);
     void session.addFiles(files);
+    if (replayId)
+      void fetchReplay(replayId).then((r) =>
+        r ? playReplay(r) : setDraft(question),
+      );
   };
 
   return (
@@ -72,6 +81,20 @@ export function App() {
               <p className="text-sm text-slate-600 dark:text-slate-400">
                 Only schemas, profiles, and previews of at most 20 rows reach
                 the model.{" "}
+                <a
+                  href="/benchmark"
+                  className="font-medium underline underline-offset-4"
+                >
+                  Benchmark
+                </a>
+                {" · "}
+                <a
+                  href="/security"
+                  className="font-medium underline underline-offset-4"
+                >
+                  Red-team results
+                </a>
+                {" · "}
                 <a
                   href={REPO}
                   className="font-medium underline underline-offset-4"

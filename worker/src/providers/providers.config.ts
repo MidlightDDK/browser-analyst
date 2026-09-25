@@ -3,7 +3,13 @@
 
 import { STEP_MAX_TOKENS } from "@browser-analyst/agent/gateway";
 
-export type ProviderId = "gemini" | "geminiLite" | "groq" | "workersAi";
+export type ProviderId =
+  | "gemini"
+  | "geminiLite"
+  | "groq"
+  | "workersAi"
+  | "gemini31Lite"
+  | "gemma4";
 
 /**
  * Fallback order; only tool-capable providers join the agent chain. Flash-Lite
@@ -47,6 +53,22 @@ export const GEMINI: OpenAiCompatible = {
 export const GEMINI_LITE: OpenAiCompatible = {
   ...GEMINI,
   model: "gemini-3.5-flash-lite",
+};
+
+/**
+ * Benchmark-only (leaderboard) models: registered but not in CHAIN. Each has
+ * its own free daily quota on the same key; both answered a tool-call probe
+ * on 2026-09-25 (gemini-2.5-flash-lite is closed to new users, and
+ * gemma-4-31b-it returned HTTP 500).
+ */
+export const GEMINI_31_LITE: OpenAiCompatible = {
+  ...GEMINI,
+  model: "gemini-3.1-flash-lite",
+};
+export const GEMMA_4: OpenAiCompatible = {
+  ...GEMINI,
+  model: "gemma-4-26b-a4b-it",
+  extra: {},
 };
 
 export const GROQ: OpenAiCompatible = {

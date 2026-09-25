@@ -17,7 +17,9 @@ import {
 import { providerClient } from "../../worker/src/providers/client.ts";
 import {
   gemini,
+  gemini31Lite,
   geminiLite,
+  gemma4,
   groq,
 } from "../../worker/src/providers/openaiCompat.ts";
 import type { Provider } from "../../worker/src/providers/types.ts";
@@ -38,6 +40,10 @@ export const MODELS: Record<string, ModelEntry> = {
   geminiLite: { provider: geminiLite, rpm: 10 },
   gemini: { provider: gemini, rpm: 5 },
   groq: { provider: groq, rpm: 2 },
+  // Leaderboard-only. Gemma's free tier caps tokens per minute (~15K), and a
+  // step is ~3.6K tokens.
+  gemini31Lite: { provider: gemini31Lite, rpm: 10 },
+  gemma4: { provider: gemma4, rpm: 4 },
 };
 
 export const CACHE_DIR = `${BENCH_DIR}.cache/`;
@@ -151,7 +157,8 @@ export function benchClient(
   name: string,
   env: Record<string, string | undefined>,
   stats: ClientStats,
-  opts: { cache?: boolean } = {},
+  /** limit: false skips the rate limiter, so a recorded replay keeps real timing. */
+  opts: { cache?: boolean; limit?: boolean } = {},
 ): ModelClient {
   const entry = MODELS[name];
   if (!entry)
@@ -178,7 +185,7 @@ export function benchClient(
           `${name}: API key missing (set it in .env)`,
         );
       const res = await withRetries(name, req.signal, async () => {
-        await take();
+        if (opts.limit !== false) await take();
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), STEP_TIMEOUT_MS);
         const stop = () => ctrl.abort();

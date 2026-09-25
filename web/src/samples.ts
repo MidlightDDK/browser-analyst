@@ -83,3 +83,13 @@ export const HACK_SAMPLE: Sample = {
   sourceUrl:
     "https://github.com/MidlightDDK/browser-analyst/blob/main/web/public/samples/hack_sales.csv",
 };
+
+/** The recorded run of a gallery question: web/public/replays/<id>.json,
+ * written by `pnpm replay:record`. */
+export function replayIdFor(question: string): string | undefined {
+  for (const s of SAMPLES) {
+    const i = s.questions.indexOf(question);
+    if (i >= 0) return `${s.id}-${i + 1}`;
+  }
+  return undefined;
+}
