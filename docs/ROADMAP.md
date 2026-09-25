@@ -9,9 +9,9 @@ One milestone at a time. Start each with an ≤ 8-line plan and wait for approva
 - `ci.yml`: install, lint, typecheck, unit tests, build.
 - First deploy: the user runs `wrangler login`; Claude runs `pnpm run deploy` after approval.
 Acceptance:
-- [ ] `https://browser-analyst.<account-subdomain>.workers.dev` shows the placeholder and `/api/health` returns JSON.
-- [ ] `curl -sI <live-url> | grep -i content-security-policy` shows the policy.
-- [ ] CI is green on a PR; `git ls-files | grep -E '(^|/)(\.env|\.dev\.vars)$'` prints nothing.
+- [x] `https://browser-analyst.<account-subdomain>.workers.dev` shows the placeholder and `/api/health` returns JSON.
+- [x] `curl -sI <live-url> | grep -i content-security-policy` shows the policy.
+- [x] CI is green on a PR; `git ls-files | grep -E '(^|/)(\.env|\.dev\.vars)$'` prints nothing.
 
 `.gitignore`:
 ```gitignore
