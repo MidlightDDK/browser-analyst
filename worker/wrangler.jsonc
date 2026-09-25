@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "browser-analyst",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-24",
+  // One Worker serves the SPA; only /api/* reaches the code (Wrangler >= 4.20).
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "ai": { "binding": "AI" },
+  // Approximate and per Cloudflare location; period must be 10 or 60 s
+  // (https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/).
+  // namespace_id is account-wide: 100x are FilingLens's, so use 200x here.
+  "ratelimits": [
+    {
+      "name": "RL_STEP",
+      "namespace_id": "2001",
+      "simple": { "limit": 20, "period": 60 }
+    },
+    {
+      "name": "RL_OTHER",
+      "namespace_id": "2002",
+      "simple": { "limit": 30, "period": 60 }
+    }
+  ]
+}

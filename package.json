@@ -1,0 +1,32 @@
+{
+  "name": "browser-analyst",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @browser-analyst/web --filter @browser-analyst/worker dev",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "vitest run",
+    "e2e": "pnpm --filter @browser-analyst/web e2e",
+    "test:providers": "echo test:providers is not implemented until M2",
+    "bench:data": "echo bench:data is not implemented until M4",
+    "bench:expected": "echo bench:expected is not implemented until M4",
+    "bench": "echo bench is not implemented until M4",
+    "bench:report": "echo bench:report is not implemented until M4",
+    "redteam": "echo redteam is not implemented until M5",
+    "replay:record": "echo replay:record is not implemented until M6",
+    "build": "pnpm --filter @browser-analyst/web build && pnpm --filter @browser-analyst/worker build",
+    "deploy": "pnpm build && pnpm --filter @browser-analyst/worker run deploy"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}

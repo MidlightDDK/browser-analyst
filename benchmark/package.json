@@ -1,0 +1,8 @@
+{
+  "name": "@browser-analyst/benchmark",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@browser-analyst/agent": "workspace:*"
+  }
+}
