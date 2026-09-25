@@ -4,7 +4,7 @@ import { SAMPLES, type Sample } from "../samples";
 export function SampleGallery({
   onOpen,
 }: {
-  onOpen: (sample: Sample) => void;
+  onOpen: (sample: Sample, question?: string) => void;
 }) {
   return (
     <section aria-labelledby="samples-heading">
@@ -29,9 +29,18 @@ export function SampleGallery({
             <p className="mt-3 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
               Questions to ask
             </p>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
+            <ul className="mt-1 space-y-1 text-sm">
               {s.questions.map((q) => (
-                <li key={q}>{q}</li>
+                <li key={q}>
+                  <button
+                    type="button"
+                    onClick={() => onOpen(s, q)}
+                    className="text-left underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                  >
+                    <span aria-hidden="true">→ </span>
+                    {q}
+                  </button>
+                </li>
               ))}
             </ul>
             <div className="mt-auto flex items-center justify-between gap-2 pt-4">

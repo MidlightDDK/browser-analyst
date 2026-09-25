@@ -27,6 +27,41 @@ export function requireMethod(request: Request, method: string): void {
   }
 }
 
+/** Same-origin only: browsers send Origin on every cross-site or POST request. */
+export function requireSameOrigin(request: Request): void {
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
+    throw new HttpError(403, "origin");
+  }
+}
+
+/** Any zod (or zod/mini) schema. */
+interface Schema<T> {
+  safeParse(data: unknown): { success: true; data: T } | { success: false };
+}
+
+/** Parses a JSON body of at most `maxBytes` (413 above, 400 when invalid). */
+export async function readJson<T>(
+  request: Request,
+  schema: Schema<T>,
+  maxBytes: number,
+): Promise<T> {
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (declared > maxBytes) throw new HttpError(413, "too_large");
+  const text = await request.text();
+  if (new TextEncoder().encode(text).length > maxBytes) {
+    throw new HttpError(413, "too_large");
+  }
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new HttpError(400, "invalid");
+  }
+  const parsed = schema.safeParse(data);
+  if (!parsed.success) throw new HttpError(400, "invalid");
+  return parsed.data;
+}
+
 export const clientIp = (request: Request) =>
   request.headers.get("cf-connecting-ip") ?? "unknown";
 

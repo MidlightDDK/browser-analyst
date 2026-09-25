@@ -36,6 +36,8 @@ export function useDataSession() {
   const [tables, setTables] = useState<LoadedTable[]>([]);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [engine, setEngine] = useState<EngineInfo | null>(null);
+  // The resolved sandbox, for synchronous result lookups (key-number links).
+  const [ready, setReady] = useState<BrowserDuckDBSandbox | null>(null);
 
   const getSandbox = useCallback(() => {
     if (!sandbox.current) {
@@ -47,6 +49,7 @@ export function useDataSession() {
             version: sb.version,
             startMs: Math.round(performance.now() - start),
           });
+          setReady(sb);
           return sb;
         });
       created.catch(() => {
@@ -102,5 +105,13 @@ export function useDataSession() {
     [getSandbox],
   );
 
-  return { tables, phase, engine, addFiles, tableRows };
+  return {
+    tables,
+    phase,
+    engine,
+    addFiles,
+    tableRows,
+    getSandbox,
+    sandbox: ready,
+  };
 }
