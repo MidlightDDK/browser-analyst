@@ -63,7 +63,7 @@ describe("POST /api/agent/step", () => {
       arguments: "{}",
     });
     expect(events[2]?.data).toMatchObject({
-      provider: "gemini",
+      provider: "geminiLite",
       usage: { input_tokens: 100, output_tokens: 20 },
     });
     const sent = JSON.parse(

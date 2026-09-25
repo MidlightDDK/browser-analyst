@@ -5,10 +5,15 @@ import { STEP_MAX_TOKENS } from "@browser-analyst/agent/gateway";
 
 export type ProviderId = "gemini" | "geminiLite" | "groq" | "workersAi";
 
-/** Fallback order; only tool-capable providers join the agent chain. */
+/**
+ * Fallback order; only tool-capable providers join the agent chain. Flash-Lite
+ * leads: Gemini 3.8 Flash's free tier allows only 20 requests per day (429
+ * `generate_content_free_tier_requests, limit: 20`, 2026-09-25), so it backs
+ * up Flash-Lite's "high demand" 503s instead.
+ */
 export const CHAIN: ProviderId[] = [
-  "gemini",
   "geminiLite",
+  "gemini",
   "groq",
   "workersAi",
 ];
@@ -38,7 +43,7 @@ export const GEMINI: OpenAiCompatible = {
   extra: { reasoning_effort: "low" },
 };
 
-/** A second Gemini model: its own free quota, and "high demand" 503s hit models separately. */
+/** Its own free quota; "high demand" 503s hit Gemini models separately. */
 export const GEMINI_LITE: OpenAiCompatible = {
   ...GEMINI,
   model: "gemini-3.5-flash-lite",

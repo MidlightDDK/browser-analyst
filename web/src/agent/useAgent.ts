@@ -144,6 +144,10 @@ export function useAgent({
       const t0 = performance.now();
       try {
         const sandbox = await getSandbox();
+        // Any bot check happens before the loop, so step timings exclude it.
+        const el = turnstileRef.current;
+        if (!el) throw new Error("The page isn't ready.");
+        await ensureSession(el, setCheckNeeded);
         const model = gatewayClient({
           ensureSession: (force) => {
             const el = turnstileRef.current;
