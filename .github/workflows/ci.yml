@@ -24,7 +24,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec biome ci .
-      - run: pnpm -s typecheck
+      # Not -s: pnpm's silent reporter hides recursive tsc errors.
+      - run: pnpm typecheck
       - run: pnpm -s test
       - run: pnpm -s build
       # Secret values must never ship to browsers: Groq (gsk_), Google (AIza),

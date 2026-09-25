@@ -18,11 +18,7 @@ function makeEnv(overrides: Partial<Env> = {}) {
 }
 
 const call = (request: Request, env: Env = makeEnv()) =>
-  worker.fetch(
-    request as Request<unknown, IncomingRequestCfProperties>,
-    env,
-    {} as ExecutionContext,
-  );
+  worker.fetch(request as Request<unknown, IncomingRequestCfProperties>, env);
 
 describe("worker routing", () => {
   it("GET /api/health reports versions and providers without secrets", async () => {
