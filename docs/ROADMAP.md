@@ -71,10 +71,10 @@ Acceptance:
 ## M2: Agent core + gateway + chat/trace UI
 - `packages/agent` loop with `list_tables`, `describe_table`, `run_sql`, `ask_user`, `final_answer`; result store; context compaction; prompts. `/api/agent/step` with the provider chain and tool normalization (reused from FilingLens when available). Chat, trace, and "What the model saw" UI.
 Acceptance:
-- [ ] Five sample questions solved live end to end.
-- [ ] `final_answer` validation catches a planted wrong number (test).
-- [ ] Loop tests pass (recovery, step cap, repeated failure, invalid arguments, `ask_user`).
-- [ ] At least 2 providers pass the tool-calling contract test.
+- [x] Five sample questions solved live end to end.
+- [x] `final_answer` validation catches a planted wrong number (test).
+- [x] Loop tests pass (recovery, step cap, repeated failure, invalid arguments, `ask_user`).
+- [x] At least 2 providers pass the tool-calling contract test.
 
 ## M3: Charts + Python sandbox + approvals
 - `make_chart` (vega-embed), `run_python` (lazy Pyodide worker, timeout, approval gate), the Node twin for Python.
