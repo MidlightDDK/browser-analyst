@@ -12,11 +12,12 @@ browser: only schemas, small previews, and the conversation go to the model.
 
 ## Status
 
-The agent (milestone M2) works end to end: open a sample or your own CSV, TSV,
+The agent (milestone M3) works end to end: open a sample or your own CSV, TSV,
 Parquet, JSON, or Excel file, ask a question, and watch the agent plan, run SQL
-in your browser, recover from its errors, and answer with numbers checked
-against the results that produced them. Charts and Python come next; the
-milestones are in [docs/ROADMAP.md](docs/ROADMAP.md).
+and (after you approve it) Python in your browser, draw charts, recover from its
+errors, and answer with numbers checked against the results that produced them.
+The benchmark comes next; the milestones are in
+[docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Agent
 
@@ -28,6 +29,14 @@ milestones are in [docs/ROADMAP.md](docs/ROADMAP.md).
   allowing for rounding. On a mismatch the model gets one chance to fix it;
   after that the answer carries a visible warning. Click a number to see its
   cell and the query behind it.
+- **Charts without sending data.** `make_chart` takes a result id and a small
+  Vega-Lite subset (mark and encoding, no data or URLs). The browser fills in
+  the rows and draws it with vega-embed; the model only gets back a chart id.
+- **Python on approval.** `run_python` runs pandas and numpy in Pyodide, in its
+  own Web Worker, loaded on first use. Input results arrive as DataFrames, and
+  a `result` DataFrame becomes a new result id that key numbers can cite. By
+  default each run waits for a Run click; a run past 15 s is stopped by
+  terminating the worker, and the next call starts a fresh one.
 - **The loop** (`packages/agent/src/loop.ts`) stops on `final_answer`, on
   `ask_user`, at the step cap (8 by default, 12 at most), or after 3 failures
   in a row of the same tool. Each step sends the last 3 steps verbatim and one
@@ -52,9 +61,10 @@ milestones are in [docs/ROADMAP.md](docs/ROADMAP.md).
   rows. The preview grid is virtualized and pages rows from DuckDB, so a
   750,000-row table scrolls like a small one.
 - **One adapter contract, two engines.** The benchmark will run the same agent
-  code in Node with `@duckdb/node-api` at the same engine version. Both adapters
-  share their logic (`packages/agent/src/duckdb-sandbox.ts`) and pass the same
-  15-case contract (`packages/agent/src/sandbox.contract.ts`): in vitest for
+  code in Node with `@duckdb/node-api` at the same engine version, and Pyodide
+  314.0.7 in a worker thread. Both adapters share their logic
+  (`packages/agent/src/duckdb-sandbox.ts`, `python.ts`) and pass the same
+  20-case contract (`packages/agent/src/sandbox.contract.ts`): in vitest for
   Node, and in Chromium through Playwright for the browser.
 
 | Measurement (M1 acceptance) | Result |
@@ -107,6 +117,9 @@ Checks: `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm e2e`.
 - **Vite + `wrangler dev` side by side**, with Vite proxying `/api`: the Worker
   stays a standalone package whose `wrangler.jsonc` also serves the built SPA
   in production, so dev and production share one Worker config.
+- **vega-embed with `ast: true`** for charts: Vega then interprets its
+  expressions instead of compiling them with `Function()`, so charts render
+  under a CSP without `unsafe-eval`. It loads only when the first chart draws.
 
 ## Datasets and licenses
 

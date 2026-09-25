@@ -1,6 +1,6 @@
 // Node twin of the browser's DuckDB-WASM sandbox, for the benchmark harness.
 // Same engine version (DuckDB 1.5.4), same shared logic (DuckDBSandbox), same
-// contract tests.
+// contract tests. Python runs in a worker thread (pyodide-node.ts).
 
 import { mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -20,6 +20,7 @@ import {
   DuckDBInstance,
   type DuckDBResultReader,
 } from "@duckdb/node-api";
+import { nodePythonRunner } from "./pyodide-node.ts";
 
 function canonical(reader: DuckDBResultReader): {
   columns: Column[];
@@ -60,7 +61,9 @@ export class NodeDuckDBSandbox extends DuckDBSandbox<Cell[][]> {
     const instance = await DuckDBInstance.create(":memory:");
     const conn = await instance.connect();
     for (const sql of lockdownSql(root)) await conn.run(sql);
-    return new NodeDuckDBSandbox(instance, conn, root);
+    const sandbox = new NodeDuckDBSandbox(instance, conn, root);
+    sandbox.pythonRunner = nodePythonRunner();
+    return sandbox;
   }
 
   protected async exec(sql: string) {
@@ -102,6 +105,7 @@ export class NodeDuckDBSandbox extends DuckDBSandbox<Cell[][]> {
   async close(): Promise<void> {
     this.conn.closeSync();
     this.instance.closeSync();
+    await this.closePython();
     await rm(this.uploadRoot, { recursive: true, force: true });
   }
 }

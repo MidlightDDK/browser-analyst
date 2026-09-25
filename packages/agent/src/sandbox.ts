@@ -1,7 +1,8 @@
 // The sandbox interface the agent runs its tools through. The browser adapter
 // (web/src/sandbox/, DuckDB-WASM) and the Node twin (benchmark/src/adapters/,
 // @duckdb/node-api) implement it and must pass sandbox.contract.ts.
-// Python (run_python) joins this interface in M3.
+// Python runs through an injected PythonRunner (python.ts): Pyodide in a Web
+// Worker in the browser, in a worker thread in Node.
 
 import type { FileFormat } from "./ingest.ts";
 
@@ -70,6 +71,31 @@ export interface SqlFailure {
 
 export type SqlResult = SqlSuccess | SqlFailure;
 
+export interface PythonOptions {
+  timeoutMs?: number;
+}
+
+export interface PythonSuccess {
+  /** print() output, cut to STDOUT_CHARS. */
+  stdout: string;
+  /** Set when the code assigned `result`; the rest describe that table. */
+  result_id?: string;
+  columns?: Column[];
+  row_count?: number;
+  preview?: Cell[][];
+  truncated?: boolean;
+  elapsed_ms: number;
+  /** Time to start Python first (download + packages), when this call did. */
+  startup_ms?: number;
+}
+
+export interface PythonFailure {
+  error: string;
+  stdout: string;
+}
+
+export type PythonResult = PythonSuccess | PythonFailure;
+
 export interface StoredResult {
   id: string;
   columns: Column[];
@@ -84,11 +110,22 @@ export interface Sandbox {
   describe(table: string): Promise<TableProfile>;
   /** Runs model-written SQL through the guard, a timeout, and the row cap. */
   sql(query: string, opts?: SqlOptions): Promise<SqlResult>;
+  /**
+   * Runs model-written Python with the given results as DataFrames; a
+   * `result` it assigns is stored as a new result id.
+   */
+  python(
+    code: string,
+    inputIds: readonly string[],
+    opts?: PythonOptions,
+  ): Promise<PythonResult>;
   getResult(id: string): StoredResult | undefined;
   close(): Promise<void>;
 }
 
 export const DEFAULT_TIMEOUT_MS = 10_000;
+export const PYTHON_TIMEOUT_MS = 15_000;
+export const STDOUT_CHARS = 2000;
 export const MAX_RESULT_ROWS = 100_000;
 export const PREVIEW_ROWS = 20;
 export const PREVIEW_CELL_CHARS = 200;

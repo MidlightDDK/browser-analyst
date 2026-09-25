@@ -74,9 +74,28 @@ function fakeSandbox(
         elapsed_ms: 1,
       };
     },
+    python: async (code, inputIds) => {
+      pythonCalls.push({ code, inputIds: [...inputIds] });
+      if (code.includes("raise"))
+        return { error: "ValueError: bad", stdout: "" };
+      const id = `r${results.size + 1}`;
+      const columns = [{ name: "answer", type: "BIGINT" }];
+      results.set(id, { id, columns, rows: [[42]], truncated: false });
+      return {
+        stdout: "hi\n",
+        result_id: id,
+        columns,
+        row_count: 1,
+        preview: [[42]],
+        truncated: false,
+        elapsed_ms: 3,
+      };
+    },
     getResult: (id) => results.get(id),
   };
 }
+
+let pythonCalls: { code: string; inputIds: string[] }[] = [];
 
 type Scripted = ModelStepResponse | ModelError;
 
@@ -364,5 +383,189 @@ describe("runAgent", () => {
       signal: ctrl.signal,
     });
     expect(res.outcome).toMatchObject({ kind: "stopped", reason: "aborted" });
+  });
+});
+
+const runPython = (code = "result = 42") =>
+  ["run_python", { code, input_result_ids: ["r1"], purpose: "the answer" }] as [
+    string,
+    unknown,
+  ];
+const pythonAnswer = [
+  "final_answer",
+  {
+    answer_markdown: "The answer is 42.",
+    key_numbers: [
+      { label: "answer", value: 42, result_id: "r2", column: "answer" },
+    ],
+  },
+] as [string, unknown];
+
+describe("run_python approval", () => {
+  it("runs Python only after the user approves, excluding the wait from timings", async () => {
+    pythonCalls = [];
+    let clock = 0;
+    let approve: (ok: boolean) => void = () => undefined;
+    const asked: unknown[] = [];
+    const model = scripted([
+      reply([runSql(MEAN_SQL)]),
+      reply([runPython()]),
+      reply([pythonAnswer]),
+    ]);
+    const run = runAgent(
+      { ...input, settings: { approvePython: true } },
+      {
+        model,
+        sandbox: fakeSandbox(),
+        now: () => clock,
+        approvePython: (req) => {
+          asked.push(req);
+          return new Promise((resolve) => {
+            approve = resolve;
+          });
+        },
+      },
+    );
+    await new Promise((r) => setTimeout(r, 10));
+    expect(asked).toEqual([
+      {
+        stepId: "2.1",
+        code: "result = 42",
+        purpose: "the answer",
+        inputIds: ["r1"],
+      },
+    ]);
+    expect(pythonCalls).toEqual([]);
+    expect(model.requests).toHaveLength(2);
+    clock = 30_000;
+    approve(true);
+    const res = await run;
+    expect(pythonCalls).toEqual([{ code: "result = 42", inputIds: ["r1"] }]);
+    expect(res.outcome).toMatchObject({ kind: "answer", verified: true });
+    const tool = res.events.find((e) => e.stepId === "2.1");
+    expect(tool?.durationMs).toBe(0);
+    expect(toolMessages(model.requests[2] ?? []).at(-1)).toContain('"hi\\n"');
+  });
+
+  it("tells the model when the user declines, without running anything", async () => {
+    pythonCalls = [];
+    const model = scripted([
+      reply([runSql(MEAN_SQL)]),
+      reply([runPython()]),
+      reply([answer(5076)]),
+    ]);
+    const res = await runAgent(
+      { ...input, settings: { approvePython: true } },
+      { model, sandbox: fakeSandbox(), approvePython: async () => false },
+    );
+    expect(pythonCalls).toEqual([]);
+    expect(toolMessages(model.requests[2] ?? []).at(-1)).toContain("declined");
+    expect(res.outcome).toMatchObject({ kind: "answer", verified: true });
+  });
+
+  it("runs without asking when approval is off, and reports Python errors", async () => {
+    pythonCalls = [];
+    const model = scripted([
+      reply([runSql(MEAN_SQL)]),
+      reply([runPython("raise ValueError('bad')")]),
+      reply([runPython()]),
+      reply([pythonAnswer]),
+    ]);
+    const res = await runAgent(input, {
+      model,
+      sandbox: fakeSandbox(),
+      approvePython: async () => {
+        throw new Error("should not ask");
+      },
+    });
+    expect(pythonCalls).toHaveLength(2);
+    expect(toolMessages(model.requests[2] ?? []).at(-1)).toContain(
+      "ValueError: bad",
+    );
+    expect(res.outcome).toMatchObject({ kind: "answer", verified: true });
+  });
+});
+
+const barChart = (field = "Species") => [
+  "make_chart",
+  {
+    result_id: "r1",
+    spec: {
+      mark: "bar",
+      title: "Mean mass",
+      encoding: {
+        x: { field, type: "nominal", sort: "-y" },
+        y: { field: "mean_mass", type: "quantitative" },
+      },
+    },
+  },
+];
+
+describe("make_chart", () => {
+  it("stores the chart by id and sends the model no rows", async () => {
+    const model = scripted([
+      reply([runSql(MEAN_SQL)]),
+      reply([barChart() as [string, unknown]]),
+      reply([answer(5076, { chart_ids: ["c1"] })]),
+    ]);
+    const res = await runAgent(input, { model, sandbox: fakeSandbox() });
+    expect(res.outcome).toMatchObject({
+      kind: "answer",
+      verified: true,
+      charts: [
+        {
+          chart_id: "c1",
+          result_id: "r1",
+          rows: 3,
+          spec: { encoding: { x: { field: "species" } } },
+        },
+      ],
+    });
+    const chartMessage = toolMessages(model.requests[2] ?? []).at(-1) ?? "";
+    expect(chartMessage).toContain('"chart_id":"c1"');
+    expect(chartMessage).not.toMatch(/Gentoo|5076|Adelie/);
+  });
+
+  it("rejects unknown fields and results, naming the columns", async () => {
+    const model = scripted([
+      reply([runSql(MEAN_SQL)]),
+      reply([barChart("mass") as [string, unknown]]),
+      reply([
+        ["make_chart", { ...(barChart()[1] as object), result_id: "r9" }],
+      ]),
+      reply([
+        [
+          "make_chart",
+          { result_id: "r1", spec: { mark: "sparkline", encoding: {} } },
+        ],
+      ]),
+    ]);
+    const res = await runAgent(input, { model, sandbox: fakeSandbox() });
+    expect(res.outcome).toMatchObject({ reason: "repeated_failure" });
+    const errors = [2, 3].map((i) =>
+      toolMessages(model.requests[i] ?? []).at(-1),
+    );
+    errors.push(res.events.find((e) => e.stepId === "4.1")?.outputPreview);
+    expect(errors[0]).toContain('"mass\\" is not a column of r1');
+    expect(errors[0]).toContain('\\"mean_mass\\"');
+    expect(errors[1]).toContain('Unknown result \\"r9\\"');
+    expect(errors[2]).toContain("use one of");
+  });
+
+  it("rejects a final answer citing a chart that doesn't exist, once", async () => {
+    const model = scripted([
+      reply([runSql(MEAN_SQL)]),
+      reply([answer(5076, { chart_ids: ["c7"] })]),
+      reply([answer(5076, { chart_ids: ["c7"] })]),
+    ]);
+    const res = await runAgent(input, { model, sandbox: fakeSandbox() });
+    expect(toolMessages(model.requests[2] ?? []).at(-1)).toContain(
+      "chart_ids cites c7",
+    );
+    expect(res.outcome).toMatchObject({
+      kind: "answer",
+      verified: false,
+      charts: [],
+    });
   });
 });

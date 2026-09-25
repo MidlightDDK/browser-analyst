@@ -4,10 +4,58 @@ import {
   type StoredResult,
 } from "@browser-analyst/agent";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
-import type { Agent, TurnView } from "../agent/useAgent";
+import type { Agent, PendingApproval, TurnView } from "../agent/useAgent";
 import { formatCount, formatMs } from "../format";
-import { FinalAnswer } from "./FinalAnswer";
+import { FinalAnswer, type ResultSource } from "./FinalAnswer";
+import { Code } from "./SqlCode";
 import { StepCard } from "./StepCard";
+
+function ApprovalCard({
+  request,
+  decide,
+}: {
+  request: PendingApproval;
+  decide: (ok: boolean) => void;
+}) {
+  return (
+    <section
+      aria-label="Approve Python"
+      className="space-y-2 rounded-lg border-2 border-amber-400 p-3 dark:border-amber-700"
+    >
+      <p className="text-sm font-medium">
+        <span aria-hidden="true">⏸ </span>
+        The agent wants to run this Python in your browser: {request.purpose}
+      </p>
+      {request.inputIds.length > 0 && (
+        <p className="text-xs text-slate-600 dark:text-slate-400">
+          Inputs as DataFrames: {request.inputIds.join(", ")}
+        </p>
+      )}
+      <Code code={request.code} language="python" />
+      <p className="text-xs text-slate-600 dark:text-slate-400">
+        It runs in a separate worker in this tab and is stopped after 15 s. Only
+        its printed output and a 20-row preview of its result go back to the
+        model.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => decide(true)}
+          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+        >
+          Run Python
+        </button>
+        <button
+          type="button"
+          onClick={() => decide(false)}
+          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium dark:border-slate-700"
+        >
+          Don’t run
+        </button>
+      </div>
+    </section>
+  );
+}
 
 function Stopped({
   outcome,
@@ -36,15 +84,22 @@ function Turn({
   live,
   ask,
   getResult,
-  sqlFor,
+  sourceFor,
+  approval,
+  decide,
 }: {
   turn: TurnView;
   live: boolean;
   ask: (q: string) => void;
   getResult: (id: string) => StoredResult | undefined;
-  sqlFor: (id: string) => string | undefined;
+  sourceFor: (id: string) => ResultSource | undefined;
+  approval: PendingApproval | null;
+  decide: (ok: boolean) => void;
 }) {
   const o = turn.outcome;
+  const chartsInAnswer = new Set(
+    o?.kind === "answer" ? o.charts.map((c) => c.chart_id) : [],
+  );
   return (
     <li className="space-y-3">
       <p className="ml-auto w-fit max-w-[90%] rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white">
@@ -52,9 +107,17 @@ function Turn({
         {turn.question}
       </p>
       {turn.steps.map((s) => (
-        <StepCard key={s.id} step={s} />
+        <StepCard
+          key={s.id}
+          step={s}
+          getResult={getResult}
+          chartsInAnswer={chartsInAnswer}
+        />
       ))}
-      {live && (
+      {approval?.turnId === turn.id && (
+        <ApprovalCard request={approval} decide={decide} />
+      )}
+      {live && !approval && (
         <p role="status" className="text-sm text-slate-600 dark:text-slate-400">
           <span aria-hidden="true" className="mr-2 inline-block animate-spin">
             ◌
@@ -67,8 +130,9 @@ function Turn({
           answer={o.answer}
           checks={o.checks}
           verified={o.verified}
+          charts={o.charts}
           getResult={getResult}
-          sqlFor={sqlFor}
+          sourceFor={sourceFor}
         />
       )}
       {o?.kind === "ask_user" && (
@@ -128,14 +192,18 @@ export function ChatPanel({
   const [text, setText] = useState(draft);
   useEffect(() => setText(draft), [draft]);
 
-  const sqlFor = useCallback(
-    (id: string) => {
+  const sourceFor = useCallback(
+    (id: string): ResultSource | undefined => {
       for (const t of agent.turns)
         for (const s of t.steps)
           for (const tool of s.tools) {
             const out = tool.output as { result_id?: string } | null;
-            if (tool.tool === "run_sql" && tool.ok && out?.result_id === id)
-              return String((tool.input as { sql?: string }).sql ?? "");
+            if (!tool.ok || out?.result_id !== id) continue;
+            const input = tool.input as { sql?: string; code?: string };
+            if (tool.tool === "run_sql")
+              return { language: "sql", code: String(input.sql ?? "") };
+            if (tool.tool === "run_python")
+              return { language: "python", code: String(input.code ?? "") };
           }
       return undefined;
     },
@@ -181,7 +249,9 @@ export function ChatPanel({
             live={agent.running && i === agent.turns.length - 1}
             ask={(q) => void agent.ask(q)}
             getResult={getResult}
-            sqlFor={sqlFor}
+            sourceFor={sourceFor}
+            approval={agent.pendingApproval}
+            decide={agent.decide}
           />
         ))}
       </ol>
@@ -242,6 +312,15 @@ export function ChatPanel({
                 ),
               )}
             </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+            <input
+              type="checkbox"
+              checked={agent.approvePython}
+              onChange={(e) => agent.setApprovePython(e.target.checked)}
+              className="size-4"
+            />
+            Ask before running Python
           </label>
         </div>
         <p className="text-xs text-slate-600 dark:text-slate-400">

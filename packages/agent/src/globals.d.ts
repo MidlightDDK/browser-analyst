@@ -5,6 +5,11 @@ declare class TextEncoder {
   encode(input?: string): Uint8Array;
 }
 declare function atob(data: string): string;
+declare function setTimeout(
+  handler: (...args: never[]) => void,
+  ms?: number,
+): unknown;
+declare function clearTimeout(id: unknown): void;
 declare class TextDecoder {
   decode(input?: Uint8Array, options?: { stream?: boolean }): string;
 }

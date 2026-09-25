@@ -22,6 +22,7 @@ import {
   Precision,
   Table,
 } from "apache-arrow";
+import { browserPythonRunner } from "./pyodide";
 
 const UPLOAD_ROOT = "uploads";
 
@@ -119,6 +120,8 @@ export class BrowserDuckDBSandbox extends DuckDBSandbox<Handle> {
     this.conn = conn;
     this.version = version;
     this.toCsv = xlsxInWorker;
+    // Pyodide itself loads on the first run_python.
+    this.pythonRunner = browserPythonRunner();
   }
 
   static async create(): Promise<BrowserDuckDBSandbox> {
@@ -203,5 +206,6 @@ export class BrowserDuckDBSandbox extends DuckDBSandbox<Handle> {
   async close(): Promise<void> {
     await this.conn.close();
     await this.db.terminate();
+    await this.closePython();
   }
 }

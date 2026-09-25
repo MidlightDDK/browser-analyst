@@ -7,10 +7,12 @@ import {
   type FinalAnswer,
   type KeyNumberCheck,
 } from "./answer.ts";
+import { type ChartRecord, type ChartSpec, checkChart } from "./charts.ts";
 import {
   buildMessages,
   jsonContent,
   profileContent,
+  pythonResultContent,
   type StepRecord,
   type StepToolRecord,
   sqlResultContent,
@@ -44,12 +46,22 @@ const NO_TOOL = "(reply without a tool call)";
 
 export type AgentSandbox = Pick<
   Sandbox,
-  "listTables" | "describe" | "sql" | "getResult"
+  "listTables" | "describe" | "sql" | "python" | "getResult"
 >;
 
 export interface AgentSettings {
   /** Default 8, capped at 12. */
   maxSteps?: number;
+  /** Ask deps.approvePython before each run_python (declined without it). */
+  approvePython?: boolean;
+}
+
+export interface PythonApproval {
+  /** The tool call's trace id, e.g. "2.1". */
+  stepId: string;
+  code: string;
+  purpose: string;
+  inputIds: string[];
 }
 
 export interface RunInput {
@@ -92,6 +104,8 @@ export type Outcome =
       checks: KeyNumberCheck[];
       /** False when accepted after a second failed validation (shown as a warning). */
       verified: boolean;
+      /** The charts listed in chart_ids, in order. */
+      charts: ChartRecord[];
     }
   | { kind: "ask_user"; question: string; options: string[] }
   | {
@@ -114,6 +128,8 @@ export interface RunDeps {
   onEvent?: (event: TraceEvent) => void;
   /** Streamed model text per step. */
   onText?: (stepId: string, delta: string) => void;
+  /** Resolves true when the user clicks Run (asked only when approvePython is on). */
+  approvePython?: (req: PythonApproval) => Promise<boolean>;
   signal?: AbortSignal;
   now?: () => number;
 }
@@ -125,6 +141,8 @@ interface ToolRun {
   input: unknown;
   output: unknown;
   outcome?: Outcome;
+  /** Time spent waiting for the user, left out of the tool's duration. */
+  waitedMs?: number;
 }
 
 const errorRun = (input: unknown, message: string): ToolRun => ({
@@ -155,6 +173,7 @@ export async function runAgent(
   const streak = new Map<string, number>();
   const lastError = new Map<string, string>();
   let rejectedAnswers = 0;
+  const charts = new Map<string, ChartRecord>();
 
   const emit = (e: Omit<TraceEvent, "at">) => {
     const event = { ...e, at: Math.round(now() - t0) };
@@ -205,6 +224,7 @@ export async function runAgent(
 
   const runTool = async (
     call: ToolCall,
+    callId: string,
     lastStep: boolean,
   ): Promise<ToolRun> => {
     const def = TOOL_BY_NAME.get(call.name);
@@ -270,6 +290,86 @@ export async function runAgent(
           output: result,
         };
       }
+      case "run_python": {
+        const code = String(args.code);
+        const inputIds = (args.input_result_ids as unknown[]).map(String);
+        let waitedMs: number | undefined;
+        if (input.settings?.approvePython) {
+          const asked = now();
+          const approved =
+            (await deps.approvePython?.({
+              stepId: callId,
+              code,
+              purpose: String(args.purpose),
+              inputIds,
+            })) ?? false;
+          waitedMs = now() - asked;
+          if (!approved)
+            return {
+              ...errorRun(
+                args,
+                "The user declined to run this Python code. Continue with SQL, or answer with what you have.",
+              ),
+              waitedMs,
+            };
+        }
+        const result = await deps.sandbox.python(code, inputIds);
+        if ("error" in result)
+          return {
+            ok: false,
+            content: jsonContent(result),
+            summary: `error: ${result.error.slice(0, 120)}`,
+            input: args,
+            output: result,
+            waitedMs,
+          };
+        const cols = (result.columns ?? []).map((c) => c.name);
+        const table = result.result_id
+          ? `${result.row_count} row(s) (${result.result_id}) [${cols.slice(0, 8).join(", ")}${cols.length > 8 ? ", …" : ""}]`
+          : "printed output only";
+        return {
+          ok: true,
+          content: pythonResultContent(result),
+          summary: `${table}: ${String(args.purpose).slice(0, 80)}`,
+          input: args,
+          output: result,
+          waitedMs,
+        };
+      }
+      case "make_chart": {
+        const resultId = String(args.result_id);
+        const result = deps.sandbox.getResult(resultId);
+        if (!result)
+          return errorRun(
+            args,
+            `Unknown result "${resultId}". Chart a result_id returned by run_sql or run_python.`,
+          );
+        const checked = checkChart(
+          args.spec as unknown as ChartSpec,
+          resultId,
+          result.columns,
+          result.rows.length,
+        );
+        if ("error" in checked) return errorRun(args, checked.error);
+        const chart: ChartRecord = {
+          chart_id: `c${charts.size + 1}`,
+          result_id: resultId,
+          spec: checked.spec,
+          rows: result.rows.length,
+        };
+        charts.set(chart.chart_id, chart);
+        return {
+          ok: true,
+          content: jsonContent({
+            chart_id: chart.chart_id,
+            rows_plotted: chart.rows,
+            note: "Drawn in the user's browser from the stored rows, which were not sent to you.",
+          }),
+          summary: `chart ${chart.chart_id} (${chart.spec.mark} of ${resultId})`,
+          input: args,
+          output: chart,
+        };
+      }
       case "ask_user": {
         const question = String(args.question);
         const options = Array.isArray(args.options)
@@ -289,8 +389,18 @@ export async function runAgent(
         const checks = checkKeyNumbers(answer, (id) =>
           deps.sandbox.getResult(id),
         );
+        const cited = answer.chart_ids ?? [];
+        const unknownCharts = cited.filter((id) => !charts.has(id));
         const problems = checks.flatMap((c) => (c.problem ? [c.problem] : []));
-        if (problems.length === 0 || rejectedAnswers > 0 || lastStep)
+        if (unknownCharts.length)
+          problems.push(
+            `chart_ids cites ${unknownCharts.join(", ")}, which no make_chart call for this question created (${charts.size ? `created: ${[...charts.keys()].join(", ")}` : "none yet"}).`,
+          );
+        if (problems.length === 0 || rejectedAnswers > 0 || lastStep) {
+          const shown = cited.flatMap((id) => {
+            const c = charts.get(id);
+            return c ? [c] : [];
+          });
           return {
             ok: true,
             content: jsonContent({ status: "accepted" }),
@@ -302,10 +412,12 @@ export async function runAgent(
               answer,
               checks,
               verified: problems.length === 0,
+              charts: shown,
             },
           };
+        }
         rejectedAnswers++;
-        const message = `The answer was not accepted: ${problems.length} key number(s) don't match the cells they cite.`;
+        const message = `The answer was not accepted: ${problems.length} key number(s) or chart id(s) don't match what they cite.`;
         return {
           ok: false,
           content: jsonContent({
@@ -407,7 +519,7 @@ export async function runAgent(
                 input: call.arguments,
                 output: null,
               }
-            : await runTool(call, lastStep);
+            : await runTool(call, callId, lastStep);
       const entry: StepToolRecord = {
         call,
         content: run.content,
@@ -428,7 +540,7 @@ export async function runAgent(
         output: run.output,
         outputPreview: run.summary,
         ok: run.ok,
-        durationMs: Math.round(now() - toolStart),
+        durationMs: Math.round(now() - toolStart - (run.waitedMs ?? 0)),
       });
       if (run.outcome && !outcome) outcome = run.outcome;
     }

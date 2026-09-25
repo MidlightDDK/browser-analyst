@@ -75,7 +75,7 @@ describe("POST /api/agent/step", () => {
       content: SYSTEM_PROMPT,
     });
     expect(sent.messages.slice(1)).toEqual(user);
-    expect(sent.tools).toHaveLength(5);
+    expect(sent.tools).toHaveLength(7);
     expect(env.RL_STEP.limit).toHaveBeenCalledOnce();
   });
 

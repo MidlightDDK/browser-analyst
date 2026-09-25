@@ -1,5 +1,6 @@
 export * from "./answer.ts";
 export * from "./cells.ts";
+export * from "./charts.ts";
 export * from "./context.ts";
 export * from "./duckdb-sandbox.ts";
 export * from "./gateway-client.ts";
@@ -8,6 +9,7 @@ export * from "./loop.ts";
 export * from "./model.ts";
 export * from "./profile.ts";
 export * from "./prompts/system.ts";
+export * from "./python.ts";
 export * from "./sandbox.ts";
 export * from "./security/sql-guard.ts";
 export * from "./sse.ts";

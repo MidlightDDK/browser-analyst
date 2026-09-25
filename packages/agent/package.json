@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./sandbox.contract": "./src/sandbox.contract.ts",
+    "./python": "./src/python.ts",
     "./gateway": "./src/gateway.ts"
   },
   "scripts": {

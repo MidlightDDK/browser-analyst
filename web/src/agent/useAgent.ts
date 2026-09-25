@@ -1,5 +1,6 @@
 // Runs the agent loop in the browser: the model call goes through the gateway,
-// every tool call runs in the local DuckDB sandbox.
+// every tool call runs in the local sandbox (DuckDB, or Pyodide after the
+// user approves).
 
 import {
   type AgentSandbox,
@@ -7,6 +8,7 @@ import {
   DEFAULT_MAX_STEPS,
   gatewayClient,
   type Outcome,
+  type PythonApproval,
   runAgent,
   type StepRequestBody,
   summarizeAnswer,
@@ -37,6 +39,10 @@ export interface StepView {
   tokens?: Usage;
   durationMs?: number;
   tools: ToolView[];
+}
+
+export interface PendingApproval extends PythonApproval {
+  turnId: number;
 }
 
 export interface TurnView {
@@ -121,11 +127,22 @@ export function useAgent({
   const [lastPayload, setLastPayload] = useState<StepRequestBody | null>(null);
   const [checkNeeded, setCheckNeeded] = useState(false);
   const [maxSteps, setMaxSteps] = useState(DEFAULT_MAX_STEPS);
+  const [approvePython, setApprovePython] = useState(true);
+  const [pendingApproval, setPendingApproval] =
+    useState<PendingApproval | null>(null);
+  const settleApproval = useRef<((ok: boolean) => void) | null>(null);
   const turnstileRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const turnsRef = useRef(turns);
   turnsRef.current = turns;
   const nextId = useRef(1);
+
+  /** The user clicked Run (true) or Don't run (false). */
+  const decide = useCallback((ok: boolean) => {
+    settleApproval.current?.(ok);
+    settleApproval.current = null;
+    setPendingApproval(null);
+  }, []);
 
   const ask = useCallback(
     async (question: string) => {
@@ -163,12 +180,17 @@ export function useAgent({
               tables.map((t) => ({ profile: t.profile, source: t.source })),
             ),
             priorTurns: prior,
-            settings: { maxSteps },
+            settings: { maxSteps, approvePython },
           },
           {
             model,
             sandbox,
             signal: ctrl.signal,
+            approvePython: (req) =>
+              new Promise<boolean>((resolve) => {
+                settleApproval.current = resolve;
+                setPendingApproval({ ...req, turnId: id });
+              }),
             onText: (stepId, delta) =>
               update((t) =>
                 withStep(t, stepId, (s) => ({ ...s, text: s.text + delta })),
@@ -193,15 +215,19 @@ export function useAgent({
           durationMs: Math.round(performance.now() - t0),
         }));
       } finally {
+        decide(false);
         abortRef.current = null;
         setRunning(false);
         setCheckNeeded(false);
       }
     },
-    [getSandbox, tables, maxSteps],
+    [getSandbox, tables, maxSteps, approvePython, decide],
   );
 
-  const stop = useCallback(() => abortRef.current?.abort(), []);
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+    decide(false);
+  }, [decide]);
 
   return {
     turns,
@@ -213,6 +239,10 @@ export function useAgent({
     turnstileRef,
     maxSteps,
     setMaxSteps,
+    approvePython,
+    setApprovePython,
+    pendingApproval,
+    decide,
   };
 }
 

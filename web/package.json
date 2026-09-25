@@ -14,7 +14,10 @@
     "@duckdb/duckdb-wasm": "1.33.1-dev57.0",
     "apache-arrow": "17.0.0",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "vega": "^6.4.0",
+    "vega-embed": "^7.3.0",
+    "vega-lite": "^6.4.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

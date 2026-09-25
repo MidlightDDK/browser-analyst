@@ -1,8 +1,9 @@
 // Tool definitions the gateway sends to every provider. Bump TOOLSET_VERSION on
 // any change here: the gateway rejects clients with another version (409).
-// run_python and make_chart join in M3.
 
-export const TOOLSET_VERSION = "tools-v1";
+import { CHANNELS, ENCODING_TYPES, MARKS, SORTS } from "../charts.ts";
+
+export const TOOLSET_VERSION = "tools-v2";
 
 /** The JSON Schema subset these tools use (validated by validateArgs). */
 export interface JsonSchema {
@@ -12,6 +13,7 @@ export interface JsonSchema {
   required?: readonly string[];
   additionalProperties?: false;
   items?: JsonSchema;
+  enum?: readonly string[];
   maxLength?: number;
   maxItems?: number;
   minimum?: number;
@@ -21,6 +23,8 @@ export type ToolName =
   | "list_tables"
   | "describe_table"
   | "run_sql"
+  | "run_python"
+  | "make_chart"
   | "ask_user"
   | "final_answer";
 
@@ -35,6 +39,25 @@ const str = (description: string, maxLength?: number): JsonSchema => ({
   description,
   ...(maxLength ? { maxLength } : {}),
 });
+
+const oneOf = (values: readonly string[]): JsonSchema => ({
+  type: "string",
+  enum: values,
+});
+
+// Repeated per channel in every request, so no per-property descriptions:
+// make_chart's description explains them once.
+const channel: JsonSchema = {
+  type: "object",
+  properties: {
+    field: { type: "string", maxLength: 200 },
+    type: oneOf(ENCODING_TYPES),
+    sort: oneOf(SORTS),
+    title: { type: "string", maxLength: 100 },
+  },
+  required: ["field", "type"],
+  additionalProperties: false,
+};
 
 export const TOOLS: readonly ToolDef[] = [
   {
@@ -67,6 +90,56 @@ export const TOOLS: readonly ToolDef[] = [
         ),
       },
       required: ["sql", "purpose"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "run_python",
+    description:
+      "Run Python 3 (pandas and numpy only) in the user's browser, for what SQL can't do well. Each input result becomes a pandas DataFrame named by its id (r1, r2, …), and also df when there is exactly one. print() output comes back (2 KB max). Assign a DataFrame, Series, or number to result to store it as a new result_id you can cite. No network or files; 15 s limit; the user may have to approve each run.",
+    parameters: {
+      type: "object",
+      properties: {
+        code: str("Python code.", 4000),
+        input_result_ids: {
+          type: "array",
+          description: "Result ids to load as DataFrames (may be empty).",
+          items: str("A result id, e.g. r2.", 20),
+          maxItems: 4,
+        },
+        purpose: str(
+          "What this code finds out, in a few words (shown to the user).",
+          200,
+        ),
+      },
+      required: ["code", "input_result_ids", "purpose"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "make_chart",
+    description:
+      "Draw a chart in the app from a stored result (aggregate, bin, and bucket dates in SQL first; at most 5,000 rows). spec is a Vega-Lite subset without data: the app fills in the rows, which are never sent to you. Each encoding channel has field (a column of that result), type, and optional sort ('-y' sorts by y, descending) and title. A pie is mark arc with theta (values) and color (categories). Returns a chart_id to list in final_answer.chart_ids.",
+    parameters: {
+      type: "object",
+      properties: {
+        result_id: str("The result to plot, e.g. r2.", 20),
+        spec: {
+          type: "object",
+          properties: {
+            mark: oneOf(MARKS),
+            title: str("Chart title.", 120),
+            encoding: {
+              type: "object",
+              properties: Object.fromEntries(CHANNELS.map((c) => [c, channel])),
+              additionalProperties: false,
+            },
+          },
+          required: ["mark", "encoding"],
+          additionalProperties: false,
+        },
+      },
+      required: ["result_id", "spec"],
       additionalProperties: false,
     },
   },
@@ -115,7 +188,10 @@ export const TOOLS: readonly ToolDef[] = [
                 description:
                   "The number as stated in the answer, unscaled (2130000, not 2.13 for '2.13 million'); a percentage as shown (12.5 for 12.5%).",
               },
-              result_id: str("The run_sql result it came from, e.g. r2.", 20),
+              result_id: str(
+                "The run_sql or run_python result it came from, e.g. r2.",
+                20,
+              ),
               column: str("The column name in that result.", 200),
               row: {
                 type: "integer",
@@ -126,6 +202,12 @@ export const TOOLS: readonly ToolDef[] = [
             required: ["label", "value", "result_id", "column"],
             additionalProperties: false,
           },
+        },
+        chart_ids: {
+          type: "array",
+          description: "Charts from make_chart to show with the answer.",
+          items: str("A chart id, e.g. c1.", 20),
+          maxItems: 4,
         },
         caveats: {
           type: "array",

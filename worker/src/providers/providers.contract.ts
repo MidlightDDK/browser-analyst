@@ -52,6 +52,7 @@ function oneCellSandbox(): AgentSandbox & { queries: string[] } {
     describe: async () => {
       throw new Error("not needed");
     },
+    python: async () => ({ error: "not needed", stdout: "" }),
     sql: async (sql) => {
       queries.push(sql);
       const name = sql.match(/\bAS\s+"?(\w+)"?/i)?.[1] ?? "value";

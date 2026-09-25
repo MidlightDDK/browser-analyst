@@ -7,6 +7,11 @@ import { quoteIdent, quoteString, truncateCell } from "./cells.ts";
 import { loadSql, planIngest, type SheetCsv } from "./ingest.ts";
 import { type Exec, profileTable } from "./profile.ts";
 import {
+  type PythonOutput,
+  type PythonRunner,
+  PythonTimeoutError,
+} from "./python.ts";
+import {
   type Cell,
   type Column,
   DEFAULT_TIMEOUT_MS,
@@ -14,10 +19,14 @@ import {
   MAX_RESULT_ROWS,
   PREVIEW_CELL_CHARS,
   PREVIEW_ROWS,
+  PYTHON_TIMEOUT_MS,
+  type PythonOptions,
+  type PythonResult,
   type RegisteredTable,
   type Sandbox,
   type SqlOptions,
   type SqlResult,
+  STDOUT_CHARS,
   type StoredResult,
   type TableInfo,
   type TableProfile,
@@ -82,6 +91,22 @@ export function cleanSqlError(raw: string): string {
   return msg.slice(0, ERROR_CHARS);
 }
 
+/** Keeps the end of a long Python error, where the exception is. */
+const pythonError = (s: string) =>
+  s.length > ERROR_CHARS ? `…${s.slice(-(ERROR_CHARS - 1))}` : s;
+
+const preview = (rows: Cell[][]) =>
+  rows
+    .slice(0, PREVIEW_ROWS)
+    .map((r) => r.map((c) => truncateCell(c, PREVIEW_CELL_CHARS)));
+
+/** A stored result: an engine handle (SQL) or plain rows (Python). */
+type Stored<H> = {
+  columns: Column[];
+  rowCount: number;
+  truncated: boolean;
+} & ({ handle: H } | { rows: Cell[][] });
+
 export abstract class DuckDBSandbox<H> implements Sandbox {
   /** Trusted, app-written SQL with canonical rows (no guard, no cap). */
   protected abstract exec(
@@ -100,12 +125,11 @@ export abstract class DuckDBSandbox<H> implements Sandbox {
   protected abstract readonly uploadRoot: string;
   /** Spreadsheet conversion; the browser overrides it to use a worker. */
   protected toCsv?: (bytes: Uint8Array) => Promise<SheetCsv[]>;
+  /** Pyodide in a worker; without it, python() reports Python as unavailable. */
+  protected pythonRunner?: PythonRunner;
 
   private readonly tables = new Map<string, RegisteredTable>();
-  private readonly results = new Map<
-    string,
-    { columns: Column[]; rowCount: number; truncated: boolean; handle: H }
-  >();
+  private readonly results = new Map<string, Stored<H>>();
   private nextResult = 1;
   private nextFile = 1;
   private queue: Promise<unknown> = Promise.resolve();
@@ -207,11 +231,9 @@ export abstract class DuckDBSandbox<H> implements Sandbox {
           result_id: id,
           columns: res.columns,
           row_count: rowCount,
-          preview: this.rowsOf(
-            res.handle,
-            0,
-            Math.min(rowCount, PREVIEW_ROWS),
-          ).map((r) => r.map((c) => truncateCell(c, PREVIEW_CELL_CHARS))),
+          preview: preview(
+            this.rowsOf(res.handle, 0, Math.min(rowCount, PREVIEW_ROWS)),
+          ),
           truncated,
           elapsed_ms: Math.round(performance.now() - start),
         };
@@ -229,15 +251,85 @@ export abstract class DuckDBSandbox<H> implements Sandbox {
     });
   }
 
+  async python(
+    code: string,
+    inputIds: readonly string[],
+    opts: PythonOptions = {},
+  ): Promise<PythonResult> {
+    const runner = this.pythonRunner;
+    if (!runner)
+      return { error: "Python isn't available in this sandbox.", stdout: "" };
+    const ids = [...new Set(inputIds)];
+    const unknown = ids.filter((id) => !this.results.has(id));
+    if (unknown.length)
+      return {
+        error: `Unknown result id(s): ${unknown.join(", ")}. Pass result_ids returned by run_sql or run_python.`,
+        stdout: "",
+      };
+    const inputs = ids.flatMap((id) => {
+      const r = this.getResult(id);
+      return r ? [{ id, columns: r.columns, rows: r.rows }] : [];
+    });
+    const timeoutMs = opts.timeoutMs ?? PYTHON_TIMEOUT_MS;
+    const start = performance.now();
+    let out: PythonOutput;
+    try {
+      out = await runner.run(
+        { code, inputs, maxRows: MAX_RESULT_ROWS, stdoutChars: STDOUT_CHARS },
+        timeoutMs,
+      );
+    } catch (err) {
+      if (err instanceof PythonTimeoutError)
+        return {
+          error: `Python timed out after ${timeoutMs / 1000} s and was stopped. Avoid long loops: use vectorized pandas or numpy.`,
+          stdout: "",
+        };
+      return {
+        error: pythonError(
+          `Python failed: ${err instanceof Error ? err.message : String(err)}`,
+        ),
+        stdout: "",
+      };
+    }
+    const stdout =
+      out.stdout.length > STDOUT_CHARS + 60
+        ? `${out.stdout.slice(0, STDOUT_CHARS)}…`
+        : out.stdout;
+    if (out.error !== undefined)
+      return { error: pythonError(out.error), stdout };
+    const base = {
+      stdout,
+      elapsed_ms: Math.round(performance.now() - start - (out.startupMs ?? 0)),
+      ...(out.startupMs !== undefined ? { startup_ms: out.startupMs } : {}),
+    };
+    if (!out.result) return base;
+    const { columns, rows, truncated } = out.result;
+    const id = `r${this.nextResult++}`;
+    this.results.set(id, { columns, rowCount: rows.length, truncated, rows });
+    return {
+      ...base,
+      result_id: id,
+      columns,
+      row_count: rows.length,
+      preview: preview(rows),
+      truncated,
+    };
+  }
+
   getResult(id: string): StoredResult | undefined {
     const r = this.results.get(id);
     if (!r) return undefined;
     return {
       id,
       columns: r.columns,
-      rows: this.rowsOf(r.handle, 0, r.rowCount),
+      rows: "rows" in r ? r.rows : this.rowsOf(r.handle, 0, r.rowCount),
       truncated: r.truncated,
     };
+  }
+
+  /** Adapters close their engine, then call this. */
+  protected async closePython(): Promise<void> {
+    await this.pythonRunner?.close();
   }
 
   abstract close(): Promise<void>;

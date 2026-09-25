@@ -1,13 +1,21 @@
 import type {
   FinalAnswer as Answer,
+  ChartRecord,
   KeyNumberCheck,
   StoredResult,
 } from "@browser-analyst/agent";
 import { useState } from "react";
 import { formatCell } from "../format";
+import { ChartView } from "./ChartView";
 import { Markdown } from "./Markdown";
 import { ResultTable } from "./ResultTable";
-import { SqlCode } from "./SqlCode";
+import { Code } from "./SqlCode";
+
+/** The code that produced a result, for the evidence view. */
+export interface ResultSource {
+  language: "sql" | "python";
+  code: string;
+}
 
 const fmt = (n: number) =>
   n.toLocaleString("en-US", { maximumFractionDigits: 10 });
@@ -17,16 +25,16 @@ function Evidence({
   row,
   column,
   getResult,
-  sqlFor,
+  sourceFor,
 }: {
   resultId: string;
   row: number;
   column: string;
   getResult: (id: string) => StoredResult | undefined;
-  sqlFor: (id: string) => string | undefined;
+  sourceFor: (id: string) => ResultSource | undefined;
 }) {
   const result = getResult(resultId);
-  const sql = sqlFor(resultId);
+  const source = sourceFor(resultId);
   if (!result)
     return <p className="text-sm">Result {resultId} isn’t available.</p>;
   const first = Math.max(0, row - 2);
@@ -34,9 +42,12 @@ function Evidence({
     <div className="mt-2 space-y-2 rounded-md border border-slate-200 p-2 dark:border-slate-800">
       <p className="text-xs text-slate-600 dark:text-slate-400">
         Result {resultId} ({result.rows.length} row
-        {result.rows.length === 1 ? "" : "s"}), from this query:
+        {result.rows.length === 1 ? "" : "s"})
+        {source
+          ? `, from this ${source.language === "sql" ? "query" : "Python code"}:`
+          : ""}
       </p>
-      {sql && <SqlCode sql={sql} />}
+      {source && <Code code={source.code} language={source.language} />}
       <ResultTable
         columns={result.columns}
         rows={result.rows.slice(first, first + 5)}
@@ -52,14 +63,16 @@ export function FinalAnswer({
   answer,
   checks,
   verified,
+  charts = [],
   getResult,
-  sqlFor,
+  sourceFor,
 }: {
   answer: Answer;
   checks: KeyNumberCheck[];
   verified: boolean;
+  charts?: ChartRecord[];
   getResult: (id: string) => StoredResult | undefined;
-  sqlFor: (id: string) => string | undefined;
+  sourceFor: (id: string) => ResultSource | undefined;
 }) {
   const [open, setOpen] = useState<number | null>(null);
   const failed = checks.filter((c) => !c.ok).length;
@@ -77,12 +90,15 @@ export function FinalAnswer({
           className="rounded-md border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
         >
           <span aria-hidden="true">⚠ </span>
-          {failed} key number{failed === 1 ? "" : "s"} didn’t match the result
-          cell cited, even after a retry. Treat {failed === 1 ? "it" : "them"}{" "}
-          with care.
+          {failed > 0
+            ? `${failed} key number${failed === 1 ? "" : "s"} didn’t match the result cell cited, even after a retry. Treat ${failed === 1 ? "it" : "them"} with care.`
+            : "The answer cited a chart that was never drawn, even after a retry, so it’s left out."}
         </p>
       )}
       <Markdown text={answer.answer_markdown} />
+      {charts.map((c) => (
+        <ChartView key={c.chart_id} chart={c} getResult={getResult} />
+      ))}
       {answer.key_numbers.length > 0 && (
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
@@ -121,7 +137,7 @@ export function FinalAnswer({
                       row={row}
                       column={column}
                       getResult={getResult}
-                      sqlFor={sqlFor}
+                      sourceFor={sourceFor}
                     />
                   )}
                 </li>

@@ -6,7 +6,9 @@ import type { FinalAnswer } from "./answer.ts";
 import { truncateCell } from "./cells.ts";
 import type {
   Cell,
+  Column,
   ColumnProfile,
+  PythonSuccess,
   SqlSuccess,
   TableProfile,
 } from "./sandbox.ts";
@@ -111,22 +113,16 @@ function fit(candidates: Iterable<unknown>): string {
   return `${s} …[truncated to fit the size limit]`;
 }
 
-export function sqlResultContent(r: SqlSuccess): string {
-  const base = {
-    result_id: r.result_id,
-    row_count: r.row_count,
-    truncated: r.truncated,
-    elapsed_ms: r.elapsed_ms,
-    columns: r.columns.map((c) => `${c.name} ${c.type}`),
-  };
+/** A table result with its preview, shrinking the preview to fit. */
+function tableContent(base: object, preview: Cell[][]): string {
   function* shrink() {
-    yield { ...base, preview: r.preview };
-    const short = r.preview.map((row) => row.map((c) => truncateCell(c, 60)));
+    yield { ...base, preview };
+    const short = preview.map((row) => row.map((c) => truncateCell(c, 60)));
     for (let n = short.length; n >= 1; n = Math.floor(n / 2))
       yield {
         ...base,
         preview: short.slice(0, n),
-        preview_note: `${n < r.preview.length ? `first ${n} of ${r.preview.length} preview rows, ` : ""}text cut to 60 characters, to fit the size limit`,
+        preview_note: `${n < preview.length ? `first ${n} of ${preview.length} preview rows, ` : ""}text cut to 60 characters, to fit the size limit`,
       };
     yield {
       ...base,
@@ -135,6 +131,41 @@ export function sqlResultContent(r: SqlSuccess): string {
     };
   }
   return fit(shrink());
+}
+
+const columnList = (columns: readonly Column[]) =>
+  columns.map((c) => `${c.name} ${c.type}`);
+
+export function sqlResultContent(r: SqlSuccess): string {
+  return tableContent(
+    {
+      result_id: r.result_id,
+      row_count: r.row_count,
+      truncated: r.truncated,
+      elapsed_ms: r.elapsed_ms,
+      columns: columnList(r.columns),
+    },
+    r.preview,
+  );
+}
+
+export function pythonResultContent(r: PythonSuccess): string {
+  const stdout = r.stdout || "(no output)";
+  if (!r.result_id)
+    return jsonContent({
+      stdout,
+      result: "none (assign a DataFrame to result to store a table)",
+    });
+  return tableContent(
+    {
+      stdout,
+      result_id: r.result_id,
+      row_count: r.row_count,
+      truncated: r.truncated,
+      columns: columnList(r.columns ?? []),
+    },
+    r.preview ?? [],
+  );
 }
 
 export function profileContent(p: TableProfile): string {

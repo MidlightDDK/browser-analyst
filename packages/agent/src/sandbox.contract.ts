@@ -4,7 +4,14 @@
 // Cases run in order against one sandbox and depend on earlier registrations.
 // Plain assertions (no test framework) so the same code runs in both places.
 
-import type { Cell, Sandbox, SqlResult, SqlSuccess } from "./sandbox.ts";
+import type {
+  Cell,
+  PythonResult,
+  PythonSuccess,
+  Sandbox,
+  SqlResult,
+  SqlSuccess,
+} from "./sandbox.ts";
 
 export interface ContractCase {
   name: string;
@@ -31,6 +38,21 @@ function failure(r: SqlResult, pattern: RegExp, what: string): void {
     throw new Error(
       `${what}: expected an error, got ${JSON.stringify(r.preview)}`,
     );
+  check(
+    pattern.test(r.error),
+    `${what}: error ${JSON.stringify(r.error)} does not match ${pattern}`,
+  );
+  check(r.error.length <= 500, `${what}: error longer than 500 chars`);
+}
+
+function pyOk(r: PythonResult, what: string): PythonSuccess {
+  if ("error" in r) throw new Error(`${what}: unexpected error: ${r.error}`);
+  return r;
+}
+
+function pyFail(r: PythonResult, pattern: RegExp, what: string): void {
+  if (!("error" in r))
+    throw new Error(`${what}: expected an error, got ${JSON.stringify(r)}`);
   check(
     pattern.test(r.error),
     `${what}: error ${JSON.stringify(r.error)} does not match ${pattern}`,
@@ -538,6 +560,162 @@ export const contractCases: ContractCase[] = [
       );
       check(Date.now() - start < 5000, `cancel took ${Date.now() - start} ms`);
       eq(await rows(sb, "SELECT 1 + 1"), [[2]], "works after a timeout");
+    },
+  },
+  {
+    name: "runs Python on results as DataFrames and stores its result",
+    async run(sb) {
+      const input = success(
+        await sb.sql("SELECT city, score, joined FROM people ORDER BY id"),
+        "input",
+      );
+      const id = input.result_id;
+      const r = pyOk(
+        await sb.python(
+          `print(len(df), df["joined"].dtype.kind, ${id} is df)\nresult = df.groupby("city", as_index=False)["score"].mean().sort_values("city")`,
+          [id],
+        ),
+        "groupby",
+      );
+      eq(r.stdout, "6 M True\n", "stdout");
+      eq(
+        r.columns,
+        [
+          { name: "city", type: "VARCHAR" },
+          { name: "score", type: "DOUBLE" },
+        ],
+        "columns",
+      );
+      const expected = [
+        ["Lyon", 74.25],
+        ["Nice", 88.25],
+        ["Paris", 78.25],
+      ];
+      eq([r.row_count, r.preview, r.truncated], [3, expected, false], "rows");
+      eq(sb.getResult(r.result_id ?? "")?.rows, expected, "stored");
+      eq(
+        r.result_id,
+        `r${Number(id.slice(1)) + 1}`,
+        "ids shared with SQL results",
+      );
+    },
+  },
+  {
+    name: "turns pandas types, Series, and numbers into canonical tables",
+    async run(sb) {
+      const typed = pyOk(
+        await sb.python(
+          `result = pd.DataFrame({
+    "i": [1, 2], "f": [1.5, None], "s": ["a", None], "b": [True, False],
+    "d": pd.to_datetime(["2024-01-02", "2024-03-04"]),
+    "t": pd.to_datetime(["2024-01-02 10:30:00.250", None]),
+})`,
+          [],
+        ),
+        "types",
+      );
+      eq(
+        typed.columns?.map((c) => c.type),
+        ["BIGINT", "DOUBLE", "VARCHAR", "BOOLEAN", "DATE", "TIMESTAMP"],
+        "types",
+      );
+      eq(
+        typed.preview,
+        [
+          [1, 1.5, "a", true, "2024-01-02", "2024-01-02 10:30:00.250"],
+          [2, null, null, false, "2024-03-04", null],
+        ],
+        "cells",
+      );
+      const series = pyOk(
+        await sb.python(
+          `result = pd.Series([3, 1], index=pd.Index(["x", "y"], name="k"), name="n")`,
+          [],
+        ),
+        "series",
+      );
+      eq(
+        [series.columns?.map((c) => c.name), series.preview],
+        [
+          ["k", "n"],
+          [
+            ["x", 3],
+            ["y", 1],
+          ],
+        ],
+        "series keeps its index",
+      );
+      const scalar = pyOk(
+        await sb.python("result = np.float64(2.5)", []),
+        "scalar",
+      );
+      eq(
+        [scalar.columns, scalar.preview],
+        [[{ name: "result", type: "DOUBLE" }], [[2.5]]],
+        "scalar",
+      );
+      const none = pyOk(await sb.python("print('no table')", []), "no result");
+      eq(
+        [none.stdout, none.result_id],
+        ["no table\n", undefined],
+        "stdout only",
+      );
+    },
+  },
+  {
+    name: "caps Python output and starts each run with fresh variables",
+    async run(sb) {
+      const big = pyOk(
+        await sb.python("x = 5\nprint('y' * 5000)", []),
+        "print",
+      );
+      check(
+        big.stdout.length <= 2100 && big.stdout.includes("more characters cut"),
+        `stdout not capped: ${big.stdout.length} chars`,
+      );
+      eq(
+        pyOk(await sb.python("print('x' in globals())", []), "fresh").stdout,
+        "False\n",
+        "no state across runs",
+      );
+    },
+  },
+  {
+    name: "reports Python errors the model can act on",
+    async run(sb) {
+      pyFail(
+        await sb.python("x = 1\ny = x / 0", []),
+        /line 2[\s\S]*y = x \/ 0[\s\S]*ZeroDivisionError/,
+        "runtime error names the line",
+      );
+      pyFail(await sb.python("def (:", []), /SyntaxError/, "syntax");
+      pyFail(
+        await sb.python("import scipy", []),
+        /ModuleNotFoundError/,
+        "numpy and pandas only",
+      );
+      pyFail(
+        await sb.python("print(1)", ["r999"]),
+        /Unknown result id\(s\): r999/,
+        "unknown input",
+      );
+    },
+  },
+  {
+    name: "stops runaway Python at the timeout and starts again",
+    async run(sb) {
+      const start = Date.now();
+      pyFail(
+        await sb.python("while True:\n    pass", [], { timeoutMs: 1000 }),
+        /timed out after 1 s/,
+        "timeout",
+      );
+      check(Date.now() - start < 3000, `stop took ${Date.now() - start} ms`);
+      eq(
+        pyOk(await sb.python("print('back')", []), "after timeout").stdout,
+        "back\n",
+        "works after a timeout",
+      );
     },
   },
 ];

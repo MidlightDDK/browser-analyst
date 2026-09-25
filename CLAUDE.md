@@ -89,12 +89,12 @@ When compacting, keep: the goal, current milestone, decisions and constraints, f
 - Benchmark: `pnpm bench --model <id> --tasks smoke|all` · `pnpm bench:report`
 - Red team (Playwright against a local build): `pnpm redteam --defenses on|off|each`
 - Replays: `pnpm replay:record --task <id>`
-- Build and deploy: `pnpm build` · `pnpm run deploy` (needs user confirmation)
+- Build and deploy: `pnpm build` · `pnpm run deploy`
 
 ## Conventions
 - TypeScript strict, ESM, Prettier defaults. Node harness scripts load local keys with `node --env-file=.env`.
 - Pin exact versions of `@duckdb/duckdb-wasm`, Pyodide, and SheetJS. New dependencies only when this spec names them or they replace substantial code; say why in the PR.
-- One branch per milestone task (e.g. `m2-agent-loop`), Conventional Commits, PR to `main`; CI green before merge.
+- Work directly on `main` (user decision, 2026-09-25: no milestone branches or PRs), Conventional Commits; keep CI green.
 - Tests live next to code (`*.test.ts`); end-to-end tests in `e2e/`.
 
 ## Secrets & safety
@@ -102,7 +102,7 @@ When compacting, keep: the goal, current milestone, decisions and constraints, f
 - Names: `GROQ_API_KEY`, `GEMINI_API_KEY`, `TURNSTILE_SECRET_KEY`, `SESSION_HMAC_SECRET`; CI adds `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`. Workers AI uses the `AI` binding (no key). The Turnstile site key is public and lives in `web/src/config.ts`.
 - Never read, print, echo, or paste secret values into code, tests, logs, or replies. If a secret shows up in a diff or output: stop and tell the user to rotate it.
 - Everything under `web/` ships to browsers and is public: no secrets or privileged logic there.
-- `git push` and deploys need the user's confirmation (enforced in `.claude/settings.json`).
+- `git push` and deploys run without asking (the user granted full access on 2026-09-25); force-pushes stay denied in `.claude/settings.json`.
 
 ## Human-only steps (stop, give exact instructions, wait)
 - Create free accounts without a card: Cloudflare, Groq, Google AI Studio. Create the Turnstile widget, run `wrangler login` and `wrangler secret put …`, add GitHub Actions secrets.

@@ -11,7 +11,21 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? "github" : "line",
   use: { baseURL: remote ?? `http://localhost:${port}` },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: "**/perf.e2e.ts",
+    },
+    // Timings run alone, after the rest, so parallel engine downloads and
+    // Python runs don't skew them.
+    {
+      name: "perf",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: "**/perf.e2e.ts",
+      dependencies: ["chromium"],
+    },
+  ],
   webServer: remote
     ? undefined
     : {

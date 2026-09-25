@@ -4,6 +4,9 @@
 import { expect, type Route, test } from "@playwright/test";
 import { trackErrors } from "./errors";
 
+// Loading DuckDB-WASM and a sample alone may take up to 60 s on a busy runner.
+test.describe.configure({ timeout: 120_000 });
+
 const QUESTION = "Which species has the heaviest average body mass?";
 const GOOD_SQL =
   "SELECT species, round(avg(body_mass_g), 1) AS mean_mass FROM penguins GROUP BY species ORDER BY mean_mass DESC";

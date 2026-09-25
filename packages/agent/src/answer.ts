@@ -14,6 +14,7 @@ export interface KeyNumber {
 export interface FinalAnswer {
   answer_markdown: string;
   key_numbers: KeyNumber[];
+  chart_ids?: string[];
   caveats?: string[];
 }
 
@@ -93,7 +94,7 @@ export function checkKeyNumbers(
     if (!result)
       return {
         ok: false,
-        problem: `${where} cites ${k.result_id}, which doesn't exist. Cite a run_sql result_id such as r1.`,
+        problem: `${where} cites ${k.result_id}, which doesn't exist. Cite a result_id from run_sql or run_python, such as r1.`,
       };
     let col = result.columns.findIndex((c) => c.name === k.column);
     if (col === -1)

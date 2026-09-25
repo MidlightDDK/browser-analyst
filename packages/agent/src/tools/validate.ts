@@ -51,6 +51,8 @@ export function validateArgs(
         return `${path} must be a string, not ${describe(value)}`;
       if (schema.maxLength !== undefined && value.length > schema.maxLength)
         return `${path} is ${value.length} characters (at most ${schema.maxLength})`;
+      if (schema.enum && !schema.enum.includes(value))
+        return `${path} is "${value}"; use one of ${schema.enum.map((v) => `"${v}"`).join(", ")}`;
       return null;
     case "number":
     case "integer":

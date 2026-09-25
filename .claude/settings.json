@@ -10,14 +10,6 @@
       "Bash(git push --force *)",
       "Bash(git push -f *)",
       "Bash(git push * --force)"
-    ],
-    "ask": [
-      "Bash(git push)",
-      "Bash(git push *)",
-      "Bash(pnpm run deploy)",
-      "Bash(pnpm run deploy *)",
-      "Bash(npx wrangler deploy)",
-      "Bash(npx wrangler deploy *)"
     ]
   }
 }

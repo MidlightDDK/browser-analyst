@@ -10,12 +10,14 @@ declare global {
   }
 }
 
-test("DuckDB-WASM sandbox passes the shared contract", async ({ page }) => {
+test("DuckDB-WASM and Pyodide pass the shared sandbox contract", async ({
+  page,
+}) => {
   test.skip(
     !!process.env.E2E_BASE_URL,
     "contract.html exists only on the dev server",
   );
-  test.setTimeout(120_000);
+  test.setTimeout(300_000); // includes Pyodide's first start
   await page.goto("/contract.html");
   await page.waitForFunction(() => typeof window.runContract === "function");
   const { version, outcomes } = await page.evaluate(() => {
@@ -23,6 +25,6 @@ test("DuckDB-WASM sandbox passes the shared contract", async ({ page }) => {
     return window.runContract();
   });
   expect(version).toBe("v1.5.4"); // same engine as the Node twin (@duckdb/node-api 1.5.4)
-  expect(outcomes.length).toBeGreaterThanOrEqual(15);
+  expect(outcomes.length).toBeGreaterThanOrEqual(20);
   for (const o of outcomes) expect.soft(o.error, o.name).toBeUndefined();
 });
