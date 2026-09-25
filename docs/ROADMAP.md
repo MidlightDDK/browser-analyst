@@ -99,7 +99,7 @@ Acceptance:
 ## M6: Leaderboard, replays, examples
 - At least 3 models benchmarked; `/benchmark` page; replay recorder and player; every sample card plays a replay with "Run live".
 Acceptance:
-- [ ] Leaderboard live with ≥ 3 models and per-category results.
+- [ ] Leaderboard live with ≥ 3 models and per-category results. (2026-09-25: live with gemini-3.1-flash-lite 94% and gemma-4-26b-a4b-it 88%; gemini-3.5-flash-lite waits on its daily quota.)
 - [x] Replays work when every provider is down. (`web/e2e/replay.e2e.ts` against the live site, version 9227da35: every step answers 503, the recording still plays, and the quota message offers it.)
 
 ## M7: Polish + launch
