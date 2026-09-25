@@ -37,6 +37,8 @@ tab. The agent comes next; the milestones are in
 | --- | --- |
 | 50 MB CSV (763,577 rows × 8 columns): load + profile | **1.82 s**, median of 3 (load 0.91 s, profile 0.92 s); target < 5 s |
 | Same file under the production CSP (`wrangler dev`) | 1.83 s |
+| Same file on the live site | 2.26 s |
+| Same file in CI (GitHub Actions `ubuntu-latest`) | 1.90 s |
 
 Measured by `web/e2e/perf.e2e.ts` in headless Chromium (Playwright 1.63) on an
 Intel Core i5-10300H laptop with 24 GB of RAM, after the engine had started.

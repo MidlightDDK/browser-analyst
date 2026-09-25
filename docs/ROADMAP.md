@@ -64,9 +64,9 @@ benchmark/.cache/
 ## M1: Data layer (files → DuckDB-WASM → profiles)
 - DuckDB-WASM worker; ingestion of CSV/TSV/Parquet/JSON plus XLSX via SheetJS CE; column profiles; virtualized preview grid; three sample datasets in the gallery; SQL guard and timeout; the Node twin for SQL.
 Acceptance:
-- [ ] A 50 MB CSV loads and profiles; measured time reported (target < 5 s).
-- [ ] SQL-guard unit tests cover ≥ 20 allowed and rejected statements.
-- [ ] Browser and Node adapters pass the shared contract tests for SQL.
+- [x] A 50 MB CSV loads and profiles; measured time reported (target < 5 s).
+- [x] SQL-guard unit tests cover ≥ 20 allowed and rejected statements.
+- [x] Browser and Node adapters pass the shared contract tests for SQL.
 
 ## M2: Agent core + gateway + chat/trace UI
 - `packages/agent` loop with `list_tables`, `describe_table`, `run_sql`, `ask_user`, `final_answer`; result store; context compaction; prompts. `/api/agent/step` with the provider chain and tool normalization (reused from FilingLens when available). Chat, trace, and "What the model saw" UI.
