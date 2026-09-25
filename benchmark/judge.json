@@ -1,0 +1,8 @@
+{
+  "model": "gemini-3.5-flash-lite",
+  "cases": 30,
+  "judge_accuracy": 1,
+  "rule_accuracy": 0.8666666666666667,
+  "judge_rule_agreement": 0.8666666666666667,
+  "misses": ["rule:j04", "rule:j13", "rule:j23", "rule:j28"]
+}

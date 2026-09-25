@@ -6,7 +6,7 @@ import {
   GROQ,
   type OpenAiCompatible,
   type ProviderId,
-} from "./providers.config";
+} from "./providers.config.ts";
 import {
   argumentsString,
   newCallId,
@@ -15,7 +15,7 @@ import {
   type ProviderEvent,
   type ProviderMessage,
   toUsage,
-} from "./types";
+} from "./types.ts";
 
 /** Gemini's documented value for function calls it didn't sign itself. */
 export const SKIP_SIGNATURE = "skip_thought_signature_validator";
@@ -139,7 +139,12 @@ function openAiCompatible(
         }),
         signal,
       }).catch((err: unknown) => {
-        throw new ProviderError(503, `${id} fetch failed: ${String(err)}`);
+        // Node's fetch hides the network error in `cause` (ECONNRESET, ...).
+        const cause = (err as { cause?: unknown })?.cause;
+        throw new ProviderError(
+          503,
+          `${id} fetch failed: ${String(err)}${cause ? ` (${String(cause)})` : ""}`,
+        );
       });
       if (!res.ok || !res.body) {
         const text = await res.text().catch(() => "");

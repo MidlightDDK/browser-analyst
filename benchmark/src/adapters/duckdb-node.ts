@@ -58,7 +58,10 @@ export class NodeDuckDBSandbox extends DuckDBSandbox<Cell[][]> {
       "\\",
       "/",
     );
-    const instance = await DuckDBInstance.create(":memory:");
+    // One thread, like DuckDB-WASM's jsDelivr bundles: row order (ties,
+    // unordered GROUP BY) is then the same every run, so tool results and the
+    // benchmark's cache keys are reproducible.
+    const instance = await DuckDBInstance.create(":memory:", { threads: "1" });
     const conn = await instance.connect();
     for (const sql of lockdownSql(root)) await conn.run(sql);
     const sandbox = new NodeDuckDBSandbox(instance, conn, root);

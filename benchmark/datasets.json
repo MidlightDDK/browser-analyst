@@ -1,0 +1,109 @@
+[
+  {
+    "name": "penguins",
+    "file": "penguins.csv",
+    "title": "Palmer Penguins (Horst, Hill, Gorman)",
+    "url": "https://raw.githubusercontent.com/allisonhorst/palmerpenguins/156daa4301838d9fdcc5b018b29b9149bf975552/inst/extdata/penguins.csv",
+    "sha256": "f204db2c753b0937caac3cb35258562c14f073e4bbc76be24b4c51ce22767a93",
+    "license": "CC0-1.0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "source": "https://allisonhorst.github.io/palmerpenguins/",
+    "file_sha256": "7d8686e372cbc0f53a0147c22d164befdef85b41596c71a5cf64aa916518b3d0",
+    "rows": 344,
+    "note": "NA written as empty (null) cells, as in the UI sample.",
+    "prepare": {
+      "sql": "COPY (SELECT * FROM read_csv({src}, nullstr = 'NA')) TO {out} (HEADER)"
+    }
+  },
+  {
+    "name": "bike",
+    "file": "bike_sharing_hourly.parquet",
+    "title": "UCI Bike Sharing, hourly (Fanaee-T, 2013)",
+    "url": "https://archive.ics.uci.edu/static/public/275/bike+sharing+dataset.zip",
+    "sha256": "b70182d0d0508e9abbb79306ce5c0cec34869000f8220175ac83d11dbe845401",
+    "license": "CC-BY-4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "source": "https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset",
+    "file_sha256": "fb402fde8ce3f003f11aa7b35529e333eb58b6f77ecfe06bcdb5b93251ae0685",
+    "rows": 17379,
+    "note": "hour.csv converted to Parquet with DuckDB; values unchanged, as in the UI sample.",
+    "prepare": {
+      "extract": "hour.csv",
+      "extract_sha256": "e03de4ee4ef4dc376ac6e04bf829673c6269e8eba5c60fa121640fa2f829504f",
+      "sql": "COPY (SELECT * FROM read_csv({src})) TO {out} (FORMAT parquet)"
+    }
+  },
+  {
+    "name": "retail",
+    "file": "online_retail_week.csv",
+    "title": "UCI Online Retail (Chen, 2015), 1 to 7 December 2010",
+    "url": "https://archive.ics.uci.edu/static/public/352/online+retail.zip",
+    "sha256": "f5385cbb54bbebf7196389109c6b0621faab0c304e3702548165e71c84aede8b",
+    "license": "CC-BY-4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "source": "https://archive.ics.uci.edu/dataset/352/online+retail",
+    "file_sha256": "80af0adcc219cae66652169168c7221d7afd80657932851e3c4470505cb86f7a",
+    "rows": 16985,
+    "note": "The same week as the UI sample: rows with InvoiceDate from 1 to 7 December 2010, via the app's SheetJS conversion to CSV (the full file is 23.7 MB).",
+    "prepare": {
+      "extract": "Online Retail.xlsx",
+      "extract_sha256": "43465a06f2ccf7c8b5bd2892bc7defb52f97487934fe93b16ae4c3936424676d",
+      "xlsx": true,
+      "sql": "COPY (SELECT * FROM read_csv({src}) WHERE InvoiceDate >= TIMESTAMP '2010-12-01' AND InvoiceDate < TIMESTAMP '2010-12-08') TO {out} (HEADER)"
+    }
+  },
+  {
+    "name": "wb_population",
+    "file": "wb_population.csv",
+    "title": "World Bank total population (SP.POP.TOTL), via datasets/population",
+    "url": "https://raw.githubusercontent.com/datasets/population/425fc447a53a26c767a15a7de60c4cc2478a0595/data/population.csv",
+    "sha256": "7d2dd6a17f5ed7916de1f89a9c116791e64d207f2e2f6ce47c57e1ab46f0088a",
+    "license": "CC-BY-4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "source": "https://github.com/datasets/population",
+    "file_sha256": "7d2dd6a17f5ed7916de1f89a9c116791e64d207f2e2f6ce47c57e1ab46f0088a",
+    "rows": 17195,
+    "note": "Unchanged. World Bank data is CC BY 4.0; the datasets/population packaging is ODC-PDDL-1.0. Includes regional and income-group aggregates (World, High income, ...) next to countries."
+  },
+  {
+    "name": "wb_gdp",
+    "file": "wb_gdp.csv",
+    "title": "World Bank GDP in current US$ (NY.GDP.MKTP.CD), via datasets/gdp",
+    "url": "https://raw.githubusercontent.com/datasets/gdp/f5b773571a8bf0dc9acebd3f7ffcf975598ab591/data/gdp.csv",
+    "sha256": "8d84ef6bcaccf740c01c5ed7566aae8f7b149d0e2c20001e441efd3cb5b2fa86",
+    "license": "CC-BY-4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "source": "https://github.com/datasets/gdp",
+    "file_sha256": "8d84ef6bcaccf740c01c5ed7566aae8f7b149d0e2c20001e441efd3cb5b2fa86",
+    "rows": 13979,
+    "note": "Unchanged. Includes regional and income-group aggregates next to countries."
+  },
+  {
+    "name": "owid_co2",
+    "file": "owid_co2.csv",
+    "title": "Our World in Data CO2 and greenhouse gas emissions, 1950 onward",
+    "url": "https://raw.githubusercontent.com/owid/co2-data/382ee6c662b0ece26e111f263b44c029afad7787/owid-co2-data.csv",
+    "sha256": "7f78e2b218ce4bb8c538bbec04fdc9a7982e8d40bff972e650df603899edd5f6",
+    "license": "CC-BY-4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "source": "https://github.com/owid/co2-data",
+    "file_sha256": "2c0341b5c1d196c726a39b88adf1d4a9380f146b8053b0ce6b8ff4fa4960ff07",
+    "rows": 18984,
+    "note": "13 of 79 columns, years 1950 onward (the full file is 14.4 MB). OWID publishes under CC BY 4.0; the emissions columns come from the Global Carbon Project (CC BY 4.0), population and GDP from OWID's own series.",
+    "prepare": {
+      "sql": "COPY (SELECT country, year, iso_code, population, gdp, co2, co2_per_capita, coal_co2, oil_co2, gas_co2, cement_co2, flaring_co2, share_global_co2 FROM read_csv({src}) WHERE year >= 1950 ORDER BY country, year) TO {out} (HEADER)"
+    }
+  },
+  {
+    "name": "messy_orders",
+    "file": "messy_orders.csv",
+    "title": "Messy orders (generated)",
+    "license": "CC0-1.0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "source": "benchmark/src/messy.ts",
+    "file_sha256": "897f96ce90759cd51e566f5c07ac715ead498b9a4ebf93c013f73cdba9b228d8",
+    "rows": 614,
+    "note": "Synthetic, seeded: mixed date formats (ISO, MM/DD/YYYY, 'Mon D, YYYY'), blank cells, inconsistent region, category, and status spellings, prices stored as text ('$1,299.00'), and 14 exact duplicate rows.",
+    "generator": "messy-orders"
+  }
+]

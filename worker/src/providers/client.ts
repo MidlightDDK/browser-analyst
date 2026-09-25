@@ -11,7 +11,7 @@ import {
   type Usage,
 } from "@browser-analyst/agent/gateway";
 import type { Env } from "../env";
-import { type Provider, ProviderError } from "./types";
+import { type Provider, ProviderError } from "./types.ts";
 
 export function providerClient(provider: Provider, env: Env): ModelClient {
   return {

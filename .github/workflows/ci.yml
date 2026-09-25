@@ -38,3 +38,61 @@ jobs:
           fi
       - run: pnpm --filter @browser-analyst/web exec playwright install --with-deps chromium
       - run: pnpm -s e2e
+
+  # The smoke benchmark (15 fixed tasks) on the production agent code, gated on
+  # benchmark/baseline.json. Model calls replay from the Actions cache, so it
+  # only spends free-tier quota when the agent's messages change. Skipped for
+  # forks (no secrets) and until a baseline is committed.
+  bench-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: gate
+        run: |
+          if [ -n "$GEMINI_API_KEY" ] && [ -f benchmark/baseline.json ]; then
+            echo "run=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Smoke benchmark skipped (no key or no baseline)."
+          fi
+      - uses: pnpm/action-setup@v6
+        if: steps.gate.outputs.run == 'yes'
+      - uses: actions/setup-node@v7
+        if: steps.gate.outputs.run == 'yes'
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        if: steps.gate.outputs.run == 'yes'
+      - uses: actions/cache@v6
+        if: steps.gate.outputs.run == 'yes'
+        with:
+          path: benchmark/data
+          key: bench-data-${{ hashFiles('benchmark/datasets.json', 'benchmark/src/messy.ts') }}
+      - uses: actions/cache/restore@v6
+        if: steps.gate.outputs.run == 'yes'
+        with:
+          path: benchmark/.cache
+          key: bench-calls-${{ github.run_id }}
+          restore-keys: bench-calls-
+      - run: pnpm bench:data
+        if: steps.gate.outputs.run == 'yes'
+      - run: pnpm bench --model geminiLite --tasks smoke
+        if: steps.gate.outputs.run == 'yes'
+      - name: Report and gate (smoke success >= baseline - 5 points)
+        if: ${{ !cancelled() && steps.gate.outputs.run == 'yes' }}
+        run: pnpm bench:report --gate --markdown bench-report.md
+      - name: Comment on the PR
+        if: ${{ !cancelled() && steps.gate.outputs.run == 'yes' && github.event_name == 'pull_request' && hashFiles('bench-report.md') != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment ${{ github.event.pull_request.number }} --body-file bench-report.md --edit-last --create-if-none
+      - uses: actions/cache/save@v6
+        if: ${{ !cancelled() && steps.gate.outputs.run == 'yes' }}
+        with:
+          path: benchmark/.cache
+          key: bench-calls-${{ github.run_id }}
