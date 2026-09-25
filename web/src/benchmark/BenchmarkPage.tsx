@@ -77,7 +77,7 @@ const td = "py-2 pr-4";
 
 function Leaderboard({ models }: { models: ModelRun[] }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[44rem] text-left text-sm">
         <caption className="mb-2 text-left text-slate-600 dark:text-slate-400">
           Ranked by success on all tasks. Steps and tokens are per task.
@@ -125,7 +125,7 @@ function ByCategory({ models }: { models: ModelRun[] }) {
     models.some((m) => m.by_category[c]),
   );
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[40rem] text-left text-sm">
         <caption className="mb-2 text-left text-slate-600 dark:text-slate-400">
           Tasks passed per category. ★ marks the best score in each row.
@@ -185,7 +185,7 @@ function Failures({ models }: { models: ModelRun[] }) {
   return (
     <div className="space-y-4">
       {tags.length > 0 ? (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[36rem] text-left text-sm">
             <caption className="mb-2 text-left text-slate-600 dark:text-slate-400">
               Why tasks failed (a failure can carry more than one tag).

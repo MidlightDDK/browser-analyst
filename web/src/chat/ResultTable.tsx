@@ -17,7 +17,7 @@ export function ResultTable({
   highlight?: { row: number; column: string };
 }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-800">
+    <div className="relative overflow-x-auto rounded-md border border-slate-200 dark:border-slate-800">
       <table className="w-full text-left text-xs">
         <caption className="sr-only">{caption}</caption>
         <thead className="bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400">

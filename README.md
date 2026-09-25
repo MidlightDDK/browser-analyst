@@ -1,201 +1,286 @@
 # Browser Analyst
 
-A data-analyst agent that runs its code in your browser.
+**A data-analyst agent that runs its SQL and Python in your browser, and
+links every number in its answer to the query that produced it.**
 
-Drop a CSV, Excel, or Parquet file (or pick a sample) and ask a question. An LLM
-agent plans, writes SQL (DuckDB-WASM) or Python (Pyodide), runs it in your
-browser, recovers from its own errors, draws charts, and answers with numbers
-traceable to the exact query that produced them. Your file never leaves your
-browser: only schemas, small previews, and the conversation go to the model.
+[![CI](https://github.com/MidlightDDK/browser-analyst/actions/workflows/ci.yml/badge.svg)](https://github.com/MidlightDDK/browser-analyst/actions/workflows/ci.yml)
+[![Smoke test of the live site](https://github.com/MidlightDDK/browser-analyst/actions/workflows/smoke.yml/badge.svg)](https://github.com/MidlightDDK/browser-analyst/actions/workflows/smoke.yml)
 
-**Live:** https://browser-analyst.azar-majed7.workers.dev
+**Live:** https://browser-analyst.azar-majed7.workers.dev ·
+[Benchmark](https://browser-analyst.azar-majed7.workers.dev/benchmark) ·
+[Red-team results](https://browser-analyst.azar-majed7.workers.dev/security)
 
-## Status
+<!-- Demo video (60 s) goes here. -->
 
-The agent works end to end: open a sample or your own CSV, TSV,
-Parquet, JSON, or Excel file, ask a question, and watch the agent plan, run SQL
-and (after you approve it) Python in your browser, draw charts, recover from its
-errors, and answer with numbers checked against the results that produced them.
-Prompt-injection defenses and a red-team suite are in (M5). Every sample
-question plays a recorded real run, and a benchmark leaderboard is live (M6).
-The live model's benchmark baseline (M4) and red-team numbers wait on
-free-tier quota. The milestones are in [docs/ROADMAP.md](docs/ROADMAP.md).
+Drop a CSV, Excel, Parquet, or JSON file (or pick a sample) and ask a
+question. An LLM agent plans, writes SQL for DuckDB-WASM or Python for Pyodide,
+runs it in your browser, recovers from its own errors, draws charts, and
+answers with key numbers that are checked against the result cells they cite.
+Your file never leaves the tab: the model sees only table schemas, profiles,
+previews of at most 20 rows, and the conversation. A trace panel shows every
+step, token, and millisecond, and "What the model saw" shows the exact payload
+of the last step.
 
-## Agent
+Each sample question plays a recording of a real run, labeled with its model
+and date, so the demo works without spending anyone's quota; "Run live" is one
+click away. The "Try to hack it" card loads a file with prompt injections
+hidden in its notes and shows the defenses catching them.
 
-- **Results by reference, not by value.** Every query result stays in the
-  browser (up to 100,000 rows each). The model sees only the columns, the row
-  count, and at most 20 preview rows, and cites results by id (`r3`).
-- **Checked numbers.** `final_answer` lists each key number with the result
-  cell it came from (`r3.mean_mass`, row 0), and the app compares them,
-  allowing for rounding. On a mismatch the model gets one chance to fix it;
-  after that the answer carries a visible warning. Click a number to see its
-  cell and the query behind it.
-- **Charts without sending data.** `make_chart` takes a result id and a small
-  Vega-Lite subset (mark and encoding, no data or URLs). The browser fills in
-  the rows and draws it with vega-embed; the model only gets back a chart id.
-- **Python on approval.** `run_python` runs pandas and numpy in Pyodide, in its
-  own Web Worker, loaded on first use. Input results arrive as DataFrames, and
-  a `result` DataFrame becomes a new result id that key numbers can cite. By
-  default each run waits for a Run click; a run past 15 s is stopped by
-  terminating the worker, and the next call starts a fresh one.
-- **The loop** (`packages/agent/src/loop.ts`) stops on `final_answer`, on
-  `ask_user`, at the step cap (8 by default, 12 at most), or after 3 failures
-  in a row of the same tool. Each step sends the last 3 steps verbatim and one
-  line per older step, within the gateway caps (24 messages, 24 KB, 4 KB per
-  tool result).
-- **The gateway** (`worker/`, a Cloudflare Worker) adds the system prompt and
-  tool schemas server-side, requires a Turnstile-backed session, rate-limits,
-  and streams one step at a time from free tiers: Gemini 3.5 Flash-Lite, then
-  Gemini 3.8 Flash, Groq (Qwen 3.8 27B), and Workers AI (gpt-oss-120b). It falls
-  through on 429, 5xx, or no first token within 8 s.
-- **What the model saw:** a drawer shows the exact payload of the last step,
-  plus the prompt and tool schemas the gateway adds.
+## Results
 
-## Data layer
+Every number below comes from a reproducible run of the production agent code
+(`packages/agent`); the reports are committed in
+[web/public/benchmark/latest.json](web/public/benchmark/latest.json) and
+[web/public/security/latest.json](web/public/security/latest.json).
 
-- **DuckDB-WASM in a Web Worker**, pinned (`@duckdb/duckdb-wasm` 1.33.1-dev57.0,
-  DuckDB 1.5.4) and loaded from jsDelivr on the first file, so first paint never
-  waits for it. Excel files go through SheetJS CE in a separate worker, one
-  table per sheet, with dates converted to ISO text.
-- **Profiles** come from DuckDB `SUMMARIZE` plus `approx_top_k`: type, null
-  share, approximate distinct count, min, max, frequent values, and 3 sample
-  rows. The preview grid is virtualized and pages rows from DuckDB, so a
-  750,000-row table scrolls like a small one.
-- **One adapter contract, two engines.** The benchmark will run the same agent
-  code in Node with `@duckdb/node-api` at the same engine version, and Pyodide
-  314.0.7 in a worker thread. Both adapters share their logic
-  (`packages/agent/src/duckdb-sandbox.ts`, `python.ts`) and pass the same
-  20-case contract (`packages/agent/src/sandbox.contract.ts`): in vitest for
-  Node, and in Chromium through Playwright for the browser.
+### Benchmark: 100 questions, 10 categories, free models
 
-| Measurement (M1 acceptance) | Result |
-| --- | --- |
-| 50 MB CSV (763,577 rows × 8 columns): load + profile | **1.82 s**, median of 3 (load 0.91 s, profile 0.92 s); target < 5 s |
-| Same file under the production CSP (`wrangler dev`) | 1.83 s |
-| Same file on the live site | 2.26 s |
-| Same file in CI (GitHub Actions `ubuntu-latest`) | 1.90 s |
+| Model | Success | Smoke split | Self-repair | Tool errors | Answers traced to results | Steps per task | Input tokens per task |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `gemini-3.1-flash-lite` | **94%** (94/100) | 15/15 | 87.5% | 7.1% | 100% | 3.1 | 11,205 |
+| `gemma-4-26b-a4b-it` | **88%** (88/100) | 14/15 | 81% | 8.6% | 100% | 3.5 | 14,090 |
 
-Measured by `web/e2e/perf.e2e.ts` in headless Chromium (Playwright 1.63) on an
-Intel Core i5-10300H laptop with 24 GB of RAM, after the engine had started.
-A first visit also downloads the engine, which took 4–6 s on a cold cache.
+| Category | Tasks | `gemini-3.1-flash-lite` | `gemma-4-26b-a4b-it` |
+| --- | --- | --- | --- |
+| Aggregation | 12 | 12 | 12 |
+| Filter | 11 | 11 | 11 |
+| Join | 9 | 9 | 9 |
+| Time series | 11 | 11 | 11 |
+| Cleaning messy data | 10 | 9 | 10 |
+| Statistics | 10 | 10 | 10 |
+| Chart | 10 | 10 | 9 |
+| Multi-step | 11 | 11 | 9 |
+| Ambiguous (should ask) | 8 | 3 | 1 |
+| Impossible (should decline) | 8 | 8 | 6 |
 
-### Guarding model-written SQL
+- **Self-repair**: of the tasks where a tool call failed (a SQL error, a bad
+  column), the share the agent still got right.
+- **Answers traced to results**: the share of final answers whose key numbers
+  all matched the result cells they cite (checked by the app, allowing for
+  rounding). Both models: every answer.
+- Most failures are judgment calls. Faced with an ambiguous question ("What's
+  the average?" about the bike-sharing table), both models usually picked a
+  reading and answered instead of asking. Eight of Gemma's 12 failures ended
+  without an answer: 4 at the step cap and 4 after three failed replies in a
+  row, such as reasoning written as text instead of a tool call.
+- The live app's first model, `gemini-3.5-flash-lite`, joins the table once
+  its daily quota allows a full run: it shares that quota with the live site.
 
-Every query the agent writes passes three layers:
+### Red team: 24 prompt-injection cases
 
-1. **Statement guard** (`packages/agent/src/security/sql-guard.ts`, 65 unit
-   cases): one statement that starts with SELECT, WITH, FROM, SUMMARIZE,
-   DESCRIBE, PIVOT, or UNPIVOT; no DDL, DML, ATTACH, COPY, INSTALL, LOAD,
-   PRAGMA, SET, or CALL; no URL literals; no file-reading table functions
-   (`read_csv`, `glob`, `query`, …) and no `FROM 'file'` scans, because the app
-   has already loaded the tables.
-2. **Engine lockdown at startup**: extension autoload and autoinstall off, file
-   access limited to the upload directory (`allowed_directories` with
-   `enable_external_access = false`), then `lock_configuration = true`. Each
-   uploaded file is dropped from the virtual file system once it is loaded.
-3. **CSP** as the browser backstop: `connect-src` allows only this site,
-   jsDelivr, and `extensions.duckdb.org` (DuckDB-WASM fetches its signed
-   Parquet and JSON extensions from there once, before the lockdown).
-
-Queries also get a 10 s timeout (cancelled through the connection) and a
-100,000-row cap on stored results; the model sees 20-row previews.
-
-## Prompt-injection defenses and red team
-
-A file is untrusted input: a cell, a column name, or the file name can carry
-instructions aimed at the model. Five defenses, each behind a flag so the
-red-team suite can measure it:
-
-1. **Spotlighting** (`packages/agent/src/security/spotlight.ts`): the catalog
-   and every tool result reach the model inside a `<data id="…">` block with a
-   random per-run id, and the system prompt says a data block is never an
-   instruction. Delimiter-like text inside the data is defanged, so a cell
-   can't close the block early.
-2. **Injection detector** (`detector.ts`): heuristics for instruction-like
-   text, fake tool calls, role markers, URLs, image links, and HTML. A hit
-   puts a ⚑ flag in the trace and a note after the data telling the model to
-   ignore it. It flags none of the benchmark datasets' rows.
-3. **Output sanitizer**: answers render without raw HTML or images, and links
-   show as plain text with the full URL.
-4. **SQL guard and engine lockdown** (above).
-5. **CSP**: the page and its workers may only connect to this site, jsDelivr,
-   and the DuckDB extension host. The Python and DuckDB workers forward their
-   `securitypolicyviolation` events to the page, so blocked requests show in
-   the trace ("Blocked by CSP: evil.example").
-
-The red-team suite (`benchmark/redteam/`, `pnpm redteam`) runs 24 attack cases
-and a control in Chromium against a local production build served with the
-real headers. Playwright stands in for the gateway and records any request to
-another origin that gets past the browser. `--model hijacked` swaps the LLM
-for a scripted model that obeys every injection, which tests the defenses that
-don't depend on the model; CI runs it on every push. Results:
-[/security](https://browser-analyst.azar-majed7.workers.dev/security)
-(from [web/public/security/latest.json](web/public/security/latest.json)).
-
-Hijacked model (5 exfiltration cases plus the control, prompt-v3):
+With the Content Security Policy on, **no request left the browser** in any
+configuration, even for a model that obeys every injection. This is the
+"hijacked" run: a scripted model that writes Python calling `fetch`,
+`sendBeacon`, WebSockets, and synchronous requests, reads remote files from
+SQL, and puts image links in its answer (5 exfiltration cases plus a control):
 
 | Configuration | Blocked by CSP | Requests that left the browser |
 | --- | --- | --- |
 | All defenses on | 4 | **0** |
+| Spotlighting off | 4 | **0** |
+| Injection detector off | 4 | **0** |
 | Output sanitizer off | 5 | **0** |
+| SQL guard off | 4 | **0** |
 | CSP off | 0 | 3 |
 | All defenses off | 0 | 4 |
 
-With CSP on, nothing left the browser in any configuration: Python's `fetch`,
-EventSource, WebSocket, and synchronous XHR were all blocked and shown in the
-trace. The SQL reads of remote files and the chart image were stopped earlier,
-by the SQL guard, the engine lockdown, and the chart schema. Live-model attack
-success rates are still to come: they wait on the free Gemini quota.
+Every blocked attempt shows in the trace ("Blocked by CSP: evil.example"). The
+SQL reads of remote files and the chart image were stopped before the CSP, by
+the SQL guard, the engine lockdown, and the chart schema. Attack success rates
+for a real model (all on, all off, each off), which measure spotlighting and
+the detector, are waiting on the free Gemini quota.
 
-The "Try to hack it" card on the home page loads a sales file with three
-injections hidden in its notes. Settings can turn each defense off (except
-CSP, which is a response header) to show what it stops.
+### Performance
 
-## Benchmark and replays
+| Measurement | Result | Target |
+| --- | --- | --- |
+| JS loaded before first paint | 102.5 KB gzipped (DuckDB, Pyodide, SheetJS, and Vega load on first use) | ≤ 300 KB, enforced by the build |
+| Lighthouse, Home, mobile (Lighthouse 13.5, simulated slow 4G) | Performance 98 · Accessibility 100 · Best practices 100 · SEO 91 | Performance ≥ 90 |
+| 50 MB CSV (763,577 rows × 8 columns): load + profile | 1.53 s, median of 3 (load 0.75 s, profile 0.78 s) | < 5 s |
+| Aggregate query over that table (`GROUP BY` with `SUM`), through the agent's `run_sql` | 49 ms, median of 3 | < 300 ms |
 
-The benchmark (`benchmark/`, `pnpm bench`) asks 100 questions about seven
-openly licensed datasets, in ten categories: aggregation, filter, join, time
-series, cleaning messy data, statistics, chart, multi-step, ambiguous (the
-agent should ask), and impossible (it should decline). Each question's ground
-truth is a reference SQL query. The harness runs the production agent loop
-(`packages/agent`) with Node twins of the browser's DuckDB and Python sandboxes,
-at temperature 0, and caches every model call, so rerunning it reproduces the
-results without calling a model. Leaderboard:
-[/benchmark](https://browser-analyst.azar-majed7.workers.dev/benchmark) (from
-[web/public/benchmark/latest.json](web/public/benchmark/latest.json)).
+Timings from `web/e2e/perf.e2e.ts` in headless Chromium on an Intel Core
+i5-10300H laptop, after the engine had started; a first visit also downloads
+DuckDB-WASM, which took 4–6 s on a cold cache. Lighthouse ran against the live
+site on 2026-09-25. Every screen fits a 375 px phone without sideways
+scrolling (`web/e2e/mobile.e2e.ts`); the workspace becomes Data, Chat, and
+Trace tabs.
 
-Full runs on free tiers (prompt-v3, tools-v2):
+## How it works
 
-| Model | Success | Ambiguous: asked | Impossible: declined | Steps per task | Input tokens per task | Answers traced to results |
-| --- | --- | --- | --- | --- | --- | --- |
-| `gemini-3.1-flash-lite` | **94%** (94/100) | 3/8 | 8/8 | 3.1 | 11,205 | 100% |
-| `gemma-4-26b-a4b-it` | **88%** (88/100) | 1/8 | 6/8 | 3.5 | 14,090 | 100% |
+```mermaid
+flowchart LR
+  subgraph browser["Your browser: all generated code runs here"]
+    ui["React app<br/>chat, trace, charts"]
+    loop["Agent loop<br/>packages/agent"]
+    duck["DuckDB-WASM<br/>Web Worker"]
+    py["Pyodide<br/>Web Worker"]
+    results[("Results r1, r2, ...<br/>stay in the tab")]
+    ui <--> loop
+    loop -- "run_sql" --> duck
+    loop -- "run_python, after approval" --> py
+    duck --> results
+    py --> results
+  end
+  subgraph cf["Cloudflare Worker, free plan"]
+    gw["/api/agent/step<br/>system prompt and tool schemas<br/>bot check, rate limits"]
+  end
+  llm["Free LLM tiers<br/>Gemini 3.5 Flash-Lite, Gemini 3.8 Flash,<br/>Groq, Workers AI"]
+  loop -- "schemas, profiles,<br/>20-row previews, conversation" --> gw
+  gw -- "one step, streamed" --> loop
+  gw <--> llm
+```
 
-Both models got every aggregation, filter, join, time-series, and statistics
-question right. Most failures are judgment calls: faced with an ambiguous
-question ("What's the average?" about the bike-sharing table), both usually
-picked a reading and answered instead of asking. Gemma sometimes wrote its reasoning as
-text instead of calling a tool; the agent stops after three such replies.
-Every final answer's key numbers matched the result cells they cite. The live
-app's first model, `gemini-3.5-flash-lite`, joins the table once its daily
-quota allows a full run (it shares that quota with the live site). A cached
-rerun reproduced both rows exactly. The LLM judge that scores declines was out
-of quota during these runs, so the keyword rule decided most impossible
-questions (6 of 8 for Gemini, 5 of Gemma's 6 answers); on 30 hand-labeled
-answers the rule is 87% accurate and the judge 100%.
+1. The app loads your file into DuckDB-WASM (in a Web Worker) and profiles
+   every column. Nothing is uploaded.
+2. The agent loop runs in the page. Each step, it sends the catalog, the recent
+   steps, and short previews of results to the Worker, which adds the system
+   prompt and tool schemas and streams back one model step.
+3. Tool calls run locally: `run_sql` in DuckDB, `run_python` (pandas and numpy)
+   in Pyodide after you click Run, `make_chart` with vega-embed. Results stay
+   in the tab; the model gets an id (`r3`), the columns, the row count, and at
+   most 20 rows.
+4. `final_answer` lists each key number with the result cell it came from
+   (`r3.mean_mass`, row 0). The app checks each one and links it to its cell
+   and query.
 
-Each sample question on the home page opens a replay of a real run: its trace
-events played back with their original timing (1×, 2×, or skip), under a
-banner naming the model and date, with a "Run live" button. `pnpm
-replay:record` records them with the same harness, a live model call per step,
-and no cache, so the timings are real. A replay needs no model and no gateway,
-so it still plays when every provider is down, and a live run that hits the
-quota offers the recording instead.
+> **Runs for $0, with no payment method anywhere.** Generated code runs on the
+> visitor's machine. The site and the API are one Cloudflare Worker on the free
+> plan, with a free Turnstile bot check and Workers rate limiting. Models come
+> from free tiers (Gemini API, Groq, Workers AI). CI, the daily smoke test, and
+> benchmark runs use GitHub Actions, which is free for public repositories.
+
+## Design decisions and tradeoffs
+
+**Results by reference, not by value.** Query results (up to 100,000 rows each)
+stay in the browser; the model cites them by id and sees 20-row previews.
+*Evidence:* about 3,600 input tokens per model call for Gemini (11,205 per task
+over 3.1 steps), under the 6,000-token step budget, and every final answer's key
+numbers traced to a real cell. *Tradeoff:* the model must query for anything it
+wants to know, so a question takes about three steps.
+
+**Checked numbers.** `final_answer` must cite a cell for each key number, and
+the app compares them, allowing for rounding. On a mismatch the model gets one
+chance to fix it; after that the answer carries a visible warning. *Evidence:*
+100% of answers traced for both models; a unit test plants a wrong number and
+expects the warning (`packages/agent/src/loop.test.ts`).
+
+**An in-browser sandbox.** DuckDB-WASM and Pyodide run in Web Workers, so
+model-written code never runs on a server, and a visitor's file is never
+uploaded. *Evidence:* a 50 MB CSV loads and profiles in 1.53 s, and an aggregate
+over it takes 49 ms. The benchmark runs the same agent code in Node against
+twins of both sandboxes (`@duckdb/node-api` at the same DuckDB version, and
+Pyodide's Node build); both pass one 20-case contract
+(`packages/agent/src/sandbox.contract.ts`) in vitest and in Chromium.
+*Tradeoff:* a first visit downloads the engine (4–6 s on a cold cache), and
+Python needs a larger download, so it loads on the first `run_python`.
+
+**Layered SQL guarding.** One read-only statement (65 unit cases in
+`packages/agent/src/security/sql-guard.ts`): no DDL, DML, `ATTACH`, `COPY`,
+`INSTALL`, `PRAGMA`, `SET`, URLs, or file-reading table functions. Then the
+engine is locked at startup (extension autoload off, external access off,
+`lock_configuration = true`), with a 10 s timeout per query.
+
+**CSP as egress control.** The page and its workers may connect only to this
+site, jsDelivr, and the DuckDB extension host. The workers forward their CSP
+violations to the page, so blocked requests appear in the trace. *Evidence:*
+0 requests left the browser with CSP on in every red-team configuration, versus
+3 with CSP off. *Tradeoff:* the allowlist has to include the CDN the engines
+load from.
+
+**Spotlighting and an injection detector.** The catalog and every tool result
+reach the model inside a `<data id="…">` block with a random per-run id, and
+delimiter-like text inside the data is defanged. Heuristics flag
+instruction-like text, fake tool calls, role markers, URLs, and HTML with a ⚑ in
+the trace and a note to the model. *Evidence:* the detector flags none of the
+benchmark datasets' rows. *Tradeoff:* heuristics can be evaded, which is why
+the CSP is the backstop; each defense has a flag so the red team can measure it
+alone.
+
+**A thin gateway that guards the quota.** The Worker adds the system prompt and
+tool schemas itself, requires a Turnstile-backed session, caps message sizes,
+rate-limits, and falls through to the next free provider on a 429, a 5xx, or no
+first token within 8 s. Its request logs hold the route, provider, status,
+latency, and token counts, but no prompts or data.
+
+**Replays for visitors, live runs on demand.** Sample questions play recorded
+trace events with their original timing (1×, 2×, skip). *Evidence:*
+`web/e2e/replay.e2e.ts` plays them with every provider answering 503, and a live
+run that hits the quota offers the recording instead of an error.
+
+**Tooling.** Biome instead of ESLint and Prettier (one fast tool and one
+config); Vite and `wrangler dev` side by side, so the Worker keeps one config
+for dev and production; vega-embed in AST mode, so charts render under a CSP
+without `unsafe-eval`.
+
+## What didn't work
+
+- **Knowing when to ask.** The prompt says to call `ask_user` only when no
+  reasonable default exists, and otherwise to pick a reading and state it. On
+  the 8 questions labeled ambiguous, the models asked 3 and 1 times. It's the
+  weakest category for both, and either the prompt or those labels needs
+  another pass.
+- **Gemini 3.8 Flash as the first provider.** Its free tier allows 20 requests a
+  day, so Gemini 3.5 Flash-Lite (500 a day) leads the chain and Flash backs up
+  its "high demand" 503s.
+- **Some free models.** Groq's `gpt-oss-120b` returned empty replies after the
+  first tool result (reproduced twice). Groq's Qwen 3.8 27B has no prompt
+  caching, so a full benchmark run would take about seven days of its daily
+  token allowance. `gemma-4-31b-it` returned 500s, then took 52 s per trivial
+  call. All three were dropped from the leaderboard.
+- **The LLM judge's quota.** The judge that scores declines on impossible
+  questions shares the Gemini quota and was out of it during the leaderboard
+  runs, so a keyword rule decided most of them. On 30 hand-labeled answers the
+  rule is 87% accurate and the judge 100%.
+- **Replays of the hack card.** The Node twin of the Python sandbox has no
+  network block, so a recording could not show the CSP stopping a request. The
+  "Try to hack it" card always runs live.
+- **Reproducible row order.** Multi-threaded DuckDB in Node returned rows in a
+  varying order, which broke the benchmark's cache keys; the Node twin is
+  pinned to one thread, like DuckDB-WASM.
+- **Vega's default build.** It compiles expressions with `Function()`, which a
+  CSP without `unsafe-eval` blocks; the AST interpreter mode renders the same
+  charts.
+
+## Methodology
+
+**Benchmark** (`benchmark/`, `pnpm bench`). 100 questions about seven openly
+licensed datasets, in ten categories: aggregation, filter, join, time series,
+cleaning messy data, statistics, chart, multi-step, ambiguous (the agent should
+ask), and impossible (it should decline). Each question's ground truth is a
+reference SQL query; `pnpm bench:expected` computes the expected values from it
+with DuckDB. The harness runs the production agent loop with the Node sandbox
+twins and the gateway's own provider adapters, at temperature 0, and caches
+every model call by a hash of the model, messages, and tools, so a rerun
+reproduces the results without calling a model (a cached rerun reproduced both
+leaderboard rows exactly). Scoring: numbers within a relative tolerance, tables
+and sets compared as multisets, charts by rules on the spec (mark, encodings
+that name result columns), `ask_user` for ambiguous questions, and a keyword
+rule plus an LLM judge for declines. CI runs the 15-task smoke split and fails
+below the committed baseline minus 5 points; it switches on once the live
+model's baseline (`benchmark/baseline.json`) is committed.
+
+**Red team** (`benchmark/redteam/`, `pnpm redteam`). 24 attack cases and a
+control, each a small file with an injection in a cell, a column name, or the
+file name, plus an ordinary question. Playwright drives a local production build
+served with the real headers, stands in for the gateway, and records any request
+to another origin that gets past the browser (then answers it locally, so
+nothing reaches a real server). It runs with every defense on, all off, and each
+one off. `--model hijacked` swaps the LLM for a scripted model that obeys every
+injection; CI runs it on every push. Playwright can't see WebSockets opened from
+a worker, so with CSP off the exfiltration count is a lower bound; with CSP on
+they show up as blocked.
+
+**Performance and uptime.** `web/e2e/perf.e2e.ts` generates a deterministic
+50 MB CSV and times loading, profiling, and one aggregate. The build fails if
+the JS loaded before first paint passes 300 KB gzipped. A daily GitHub Actions
+job (`.github/workflows/smoke.yml`) loads the live Home page, calls
+`/api/health`, renders `/benchmark`, and plays a replay, and opens an issue if
+anything fails.
 
 ## Run locally
 
-Needs Node 22+ and pnpm 10.
+Needs Node 24 (the version CI uses) and pnpm 10.
 
 ```bash
 pnpm i
@@ -203,25 +288,25 @@ pnpm dev    # Vite on :5173 and wrangler dev on :8787; Vite proxies /api
 ```
 
 Checks: `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm e2e` ·
-`pnpm redteam --model hijacked --defenses each` (no API keys needed).
+`pnpm redteam --model hijacked --defenses each` (none of these need API keys).
 
-## Tooling choices
+Live model calls need free keys: copy
+[worker/dev.vars.example](worker/dev.vars.example) to `worker/.dev.vars` for the
+app, and put `GEMINI_API_KEY` in a root `.env` for the benchmark:
 
-- **Biome** for lint and format: one fast tool and one config instead of
-  ESLint + Prettier (its formatter follows Prettier's style).
-- **Vite + `wrangler dev` side by side**, with Vite proxying `/api`: the Worker
-  stays a standalone package whose `wrangler.jsonc` also serves the built SPA
-  in production, so dev and production share one Worker config.
-- **vega-embed with `ast: true`** for charts: Vega then interprets its
-  expressions instead of compiling them with `Function()`, so charts render
-  under a CSP without `unsafe-eval`. It loads only when the first chart draws.
+```bash
+pnpm bench:data                                # download and verify the datasets
+pnpm bench --model gemini31Lite --tasks smoke  # or --tasks all
+pnpm bench:report
+```
 
-## Datasets and licenses
+## Datasets, privacy, and limitations
 
 The UI samples live in [web/public/samples/](web/public/samples/). The
 benchmark's datasets are listed in [benchmark/datasets.json](benchmark/datasets.json)
-with pinned URLs and SHA-256 hashes; `pnpm bench:data` downloads, checks, and
-derives them into `benchmark/data/` (not committed).
+with pinned URLs and SHA-256 hashes of each download and derived file;
+`pnpm bench:data` downloads, checks, and derives them into `benchmark/data/`
+(not committed).
 
 | Data | Source | License | Changes |
 | --- | --- | --- | --- |
@@ -234,8 +319,25 @@ derives them into `benchmark/data/` (not committed).
 | `hack_sales.csv`, 30 rows ("Try to hack it" sample) and the red-team files | Generated for this project (red-team files by [benchmark/redteam/cases.ts](benchmark/redteam/cases.ts)) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Synthetic orders with planted prompt injections |
 | `messy_orders.csv`, 614 rows (benchmark) | Generated by [benchmark/src/messy.ts](benchmark/src/messy.ts) (seeded) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Mixed date formats, blanks, inconsistent spellings, prices as text, 14 duplicate rows |
 
-SHA-256 of each download and of each derived file is in `benchmark/datasets.json`.
+**Privacy.** Your files stay in the tab and are gone when you close it. What
+reaches the model provider is the table schemas and profiles, previews of at
+most 20 rows per result, and the conversation; "What the model saw" shows the
+exact payload. Free tiers may use prompts to improve their models (see the
+[Gemini API terms](https://ai.google.dev/gemini-api/terms)), so don't ask about
+confidential data.
+
+**Limitations.**
+- Free quotas are small and shared: the benchmark and the live site use the
+  same Gemini key, so a busy day falls back to other providers or to the
+  recordings.
+- The benchmark is one run per model at temperature 0 on 100 tasks, with no
+  variance estimate, and its reference SQL is written for this project.
+- Spotlighting and the detector reduce injections but don't stop them; a
+  hijacked model can still give a wrong answer, which the number checks catch
+  only when it cites a cell that disagrees.
+- Stored results are capped at 100,000 rows, queries at 10 s, and Python runs at
+  15 s; large files are limited by the device's memory.
 
 ## License
 
-[MIT](LICENSE)
+Code: [MIT](LICENSE). Datasets: as listed above.

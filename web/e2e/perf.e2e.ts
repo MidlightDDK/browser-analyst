@@ -1,8 +1,10 @@
 // M1 acceptance: a 50 MB CSV loads and profiles; the measured time is printed
-// and attached to the report (target < 5 s on a mid-range laptop).
+// and attached to the report (target < 5 s on a mid-range laptop). Then a
+// typical aggregate over it, run by the agent's run_sql tool (target < 300 ms).
 
 import { writeFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import { mockGateway } from "./gateway";
 
 const TARGET_BYTES = 50 * 1024 * 1024;
 
@@ -83,10 +85,37 @@ test("a 50 MB CSV loads and profiles in the browser", async ({
     `${rows.toLocaleString("en-US")} rows`,
   );
 
+  await mockGateway(page, [
+    [
+      "run_sql",
+      {
+        sql: "SELECT category, count(*) AS orders, sum(unit_price * quantity) AS revenue FROM orders_50mb GROUP BY category ORDER BY revenue DESC",
+        purpose: "revenue per category",
+      },
+    ],
+    [
+      "final_answer",
+      {
+        answer_markdown: "Revenue per category.",
+        key_numbers: [],
+        chart_ids: [],
+      },
+    ],
+  ]);
+  await page.getByLabel("Your question").fill("Revenue per category?");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  // The trace times the tool: "Tool 1.1 245 ms".
+  const tool = page.getByRole("listitem").filter({ hasText: "run_sql:" });
+  await expect(tool).toContainText("8 row(s)", { timeout: 30_000 });
+  const [, n, unit] =
+    /Tool 1\.1\s*([\d.]+) (ms|s)/.exec(await tool.innerText()) ?? [];
+  const queryMs = unit === "s" ? Number(n) * 1000 : Number(n);
+
   const mb = (Buffer.byteLength(csv) / 1024 / 1024).toFixed(1);
-  const summary = `${mb} MB CSV, ${rows} rows: load ${loadMs} ms + profile ${profileMs} ms = ${loadMs + profileMs} ms`;
+  const summary = `${mb} MB CSV, ${rows} rows: load ${loadMs} ms + profile ${profileMs} ms = ${loadMs + profileMs} ms; aggregate query ${queryMs} ms`;
   console.log(summary);
   testInfo.annotations.push({ type: "perf", description: summary });
   expect(loadMs).toBeGreaterThan(0);
   expect(profileMs).toBeGreaterThan(0);
+  expect(queryMs).toBeGreaterThan(0);
 });

@@ -105,8 +105,8 @@ Acceptance:
 ## M7: Polish + launch
 - README (outline below), architecture diagram (Mermaid in the README), performance-budget and mobile pass, `smoke.yml`, final benchmark and red-team numbers in the README.
 Acceptance:
-- [ ] README complete with release numbers committed.
-- [ ] Smoke workflow green for 3 consecutive days.
+- [ ] README complete with release numbers committed. (2026-09-25: README follows the outline, with a Mermaid diagram, results, performance, and methodology; live-model red-team rates and the gemini-3.5-flash-lite leaderboard row wait on the daily Gemini quota.)
+- [ ] Smoke workflow green for 3 consecutive days. (`.github/workflows/smoke.yml`, daily at 05:23 UTC; first run green on 2026-09-25, run 36199472966.)
 - [ ] Demo video (recorded by the user) linked at the top of the README.
 
 ## Stretch (only when the user asks)

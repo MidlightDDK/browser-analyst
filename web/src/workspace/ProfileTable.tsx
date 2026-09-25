@@ -3,7 +3,7 @@ import { formatCell, formatCount } from "../format";
 
 export function ProfileTable({ profile }: { profile: TableProfile }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+    <div className="relative overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
       <table className="w-full text-left text-sm">
         <caption className="sr-only">Column profile of {profile.table}</caption>
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-900 dark:text-slate-400">
