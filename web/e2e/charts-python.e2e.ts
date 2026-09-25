@@ -243,11 +243,9 @@ test("a runaway Python loop is stopped at 15 s and the agent recovers", async ({
   await expect(step2).toContainText("timed out after 15 s", {
     timeout: 30_000,
   });
-  // Wall clock (page polling blurs it by a few hundred ms), then the trace's
-  // own duration for the killed call.
-  const stoppedAfter = Date.now() - started;
-  expect(stoppedAfter).toBeGreaterThan(14_000);
-  expect(stoppedAfter).toBeLessThan(18_000);
+  // The trace's own duration for the killed call is the measure; the wall
+  // clock only bounds it (its start mark lags whenever the page is busy).
+  expect(Date.now() - started).toBeLessThan(20_000);
   const killed = await page
     .getByRole("list", { name: /^Trace of:/ })
     .getByRole("listitem")

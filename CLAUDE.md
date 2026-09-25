@@ -118,7 +118,7 @@ When compacting, keep: the goal, current milestone, decisions and constraints, f
 - [x] M0 Scaffold + hello-world deploy
 - [x] M1 Data layer: files → DuckDB-WASM → profiles
 - [x] M2 Agent core + gateway + chat/trace UI
-- [ ] M3 Charts + Python sandbox + approvals
+- [x] M3 Charts + Python sandbox + approvals
 - [ ] M4 Benchmark v1 + CI gate
 - [ ] M5 Security defenses + red-team suite
 - [ ] M6 Leaderboard, replays, examples

@@ -79,9 +79,9 @@ Acceptance:
 ## M3: Charts + Python sandbox + approvals
 - `make_chart` (vega-embed), `run_python` (lazy Pyodide worker, timeout, approval gate), the Node twin for Python.
 Acceptance:
-- [ ] Chart tasks render from result ids, and an e2e test confirms no chart data appears in the model payload.
-- [ ] An infinite loop in Python is killed at 15 s and the agent recovers.
-- [ ] The approval gate blocks execution until clicked.
+- [x] Chart tasks render from result ids, and an e2e test confirms no chart data appears in the model payload.
+- [x] An infinite loop in Python is killed at 15 s and the agent recovers.
+- [x] The approval gate blocks execution until clicked.
 
 ## M4: Benchmark v1 + CI gate
 - `datasets.json` with download and verification; `tasks.jsonl` with reference SQL (all reviewed by the user); `bench:expected`; the Node harness; scorers; report; baseline; CI smoke gate with PR comment.
