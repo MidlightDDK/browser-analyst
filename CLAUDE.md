@@ -115,7 +115,7 @@ When compacting, keep: the goal, current milestone, decisions and constraints, f
 - `docs/ROADMAP.md`: milestones, acceptance criteria, M0 file templates, README outline.
 
 ## Milestone status (tick only when every acceptance box for that milestone passes)
-- [ ] M0 Scaffold + hello-world deploy
+- [x] M0 Scaffold + hello-world deploy
 - [ ] M1 Data layer: files → DuckDB-WASM → profiles
 - [ ] M2 Agent core + gateway + chat/trace UI
 - [ ] M3 Charts + Python sandbox + approvals
