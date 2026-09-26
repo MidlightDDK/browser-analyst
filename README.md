@@ -10,10 +10,10 @@ links every number in its answer to the query that produced it.**
 [Benchmark](https://browser-analyst.azar-majed7.workers.dev/benchmark) ·
 [Red-team results](https://browser-analyst.azar-majed7.workers.dev/security)
 
-https://github.com/user-attachments/assets/f8209f85-e048-4634-966a-f6309cf9318b
+https://github.com/user-attachments/assets/e410652a-dd6e-4916-bd60-ef8d6780c077
 
 **Demo (1 minute, captioned):** play it above or
-[watch it on YouTube](https://youtu.be/YZkJf0ScAIM). A sample question replays
+[watch it on YouTube](https://youtu.be/ECeh_A207S0). A sample question replays
 a recorded run, then a live "Try to hack it" run, then the red-team and
 benchmark results.
 
