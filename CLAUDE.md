@@ -109,6 +109,7 @@ When compacting, keep: the goal, current milestone, decisions and constraints, f
 - Tell Claude the local path of the FilingLens repo, if it exists.
 - Confirm dataset licenses Claude flags as unclear; review every benchmark task's reference SQL (it is the ground truth) and each red-team case's success rule.
 - Record the 60-second demo video; approve the final README.
+- 2026-09-26: the user delegated the SQL and red-team-rule reviews, GitHub Actions secrets, repo visibility, the demo video (and its uploads), and README approval to Claude. Do them yourself and record that Claude did them. Account creation and passwords stay with the user.
 
 ## Where the details live
 - `.claude/rules/agent.md` (packages/agent/**) · `sandbox.md` (web/src/sandbox/**, benchmark/src/adapters/**) · `security.md` (packages/agent/src/security/**, web/public/_headers, benchmark/redteam/**) · `gateway.md` (worker/**) · `web.md` (web/**) · `benchmark.md` (benchmark/**, .github/**). They load automatically when you read matching files. Before creating the first file in an area, read its rule file directly.

@@ -86,7 +86,7 @@ Acceptance:
 ## M4: Benchmark v1 + CI gate
 - `datasets.json` with download and verification; `tasks.jsonl` with reference SQL (all reviewed by the user); `bench:expected`; the Node harness; scorers; report; baseline; CI smoke gate with PR comment.
 Acceptance:
-- [ ] About 100 reviewed tasks covering every category.
+- [x] About 100 reviewed tasks covering every category. (2026-09-26: reviewed by Claude, which the user delegated: all 100 reference queries re-run on the data; no ties in the top-1 tasks; messy-data normalizations verified (no blank strings, every date parses in the three formats); the impossible tasks confirmed unanswerable, e.g. owid_co2 has no methane column. No task needed a change.)
 - [ ] Per-category baseline for one model committed in `benchmark/baseline.json`.
 - [ ] The gate proven by a deliberately broken branch (then reverted).
 
