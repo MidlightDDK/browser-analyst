@@ -107,7 +107,7 @@ Acceptance:
 Acceptance:
 - [ ] README complete with release numbers committed. (2026-09-25: README follows the outline, with a Mermaid diagram, results, performance, and methodology; live-model red-team rates and the gemini-3.5-flash-lite leaderboard row wait on the daily Gemini quota.)
 - [ ] Smoke workflow green for 3 consecutive days. (`.github/workflows/smoke.yml`, daily at 05:23 UTC; first run green on 2026-09-25, run 36199472966.)
-- [ ] Demo video (recorded by the user) linked at the top of the README.
+- [x] Demo video linked at the top of the README. (2026-09-26: made by Claude at the user's request from scripted Playwright recordings of the live site: 65 s, captioned; GitHub inline player plus https://youtu.be/YZkJf0ScAIM, unlisted.)
 
 ## Stretch (only when the user asks)
 - `packages/mcp-server`: a stdio MCP server built with `@modelcontextprotocol/sdk` exposing `list_tables`, `describe_table`, and `run_sql` over local files via `@duckdb/node-api`; publish to npm only if the user wants.

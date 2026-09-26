@@ -10,7 +10,12 @@ links every number in its answer to the query that produced it.**
 [Benchmark](https://browser-analyst.azar-majed7.workers.dev/benchmark) ·
 [Red-team results](https://browser-analyst.azar-majed7.workers.dev/security)
 
-<!-- Demo video (60 s) goes here. -->
+https://github.com/user-attachments/assets/f8209f85-e048-4634-966a-f6309cf9318b
+
+**Demo (1 minute, captioned):** play it above or
+[watch it on YouTube](https://youtu.be/YZkJf0ScAIM). A sample question replays
+a recorded run, then a live "Try to hack it" run, then the red-team and
+benchmark results.
 
 Drop a CSV, Excel, Parquet, or JSON file (or pick a sample) and ask a
 question. An LLM agent plans, writes SQL for DuckDB-WASM or Python for Pyodide,
