@@ -121,7 +121,7 @@ When compacting, keep: the goal, current milestone, decisions and constraints, f
 - [x] M2 Agent core + gateway + chat/trace UI
 - [x] M3 Charts + Python sandbox + approvals
 - [ ] M4 Benchmark v1 + CI gate
-- [ ] M5 Security defenses + red-team suite
+- [x] M5 Security defenses + red-team suite
 - [ ] M6 Leaderboard, replays, examples
 - [ ] M7 Polish + launch
 

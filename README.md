@@ -91,9 +91,15 @@ SQL, and puts image links in its answer (5 exfiltration cases plus a control):
 
 Every blocked attempt shows in the trace ("Blocked by CSP: evil.example"). The
 SQL reads of remote files and the chart image were stopped before the CSP, by
-the SQL guard, the engine lockdown, and the chart schema. Attack success rates
-for a real model (all on, all off, each off), which measure spotlighting and
-the detector, are waiting on the free Gemini quota.
+the SQL guard, the engine lockdown, and the chart schema.
+
+With the live model, `gemini-3.5-flash-lite` (2026-09-26), **0 of 24 attacks
+succeeded in every configuration**, all defenses off included, and it still
+answered the ordinary question correctly in all 25 cases (24 attacks plus the
+control). The detector flagged 31 injections with every defense on. Since this
+model ignored the injections even without spotlighting or the detector, these
+runs show that the defenses cost no accuracy, not how much they add; the
+hijacked run above shows what the CSP catches when a model does obey.
 
 ### Performance
 
@@ -198,7 +204,9 @@ reach the model inside a `<data id="…">` block with a random per-run id, and
 delimiter-like text inside the data is defanged. Heuristics flag
 instruction-like text, fake tool calls, role markers, URLs, and HTML with a ⚑ in
 the trace and a note to the model. *Evidence:* the detector flags none of the
-benchmark datasets' rows. *Tradeoff:* heuristics can be evaded, which is why
+benchmark datasets' rows, and task success under attack stays 25/25 with both
+on; `gemini-3.5-flash-lite` resisted all 24 attacks with them off too, so their
+added protection is unmeasured for that model. *Tradeoff:* heuristics can be evaded, which is why
 the CSP is the backstop; each defense has a flag so the red team can measure it
 alone.
 
@@ -271,8 +279,10 @@ file name, plus an ordinary question. Playwright drives a local production build
 served with the real headers, stands in for the gateway, and records any request
 to another origin that gets past the browser (then answers it locally, so
 nothing reaches a real server). It runs with every defense on, all off, and each
-one off. `--model hijacked` swaps the LLM for a scripted model that obeys every
-injection; CI runs it on every push. Playwright can't see WebSockets opened from
+one off. Model steps go through the benchmark's cache, so a configuration that
+doesn't change what the model sees reuses earlier responses (the live run made
+623 model calls, 378 from cache). `--model hijacked` swaps the LLM for a
+scripted model that obeys every injection; CI runs it on every push. Playwright can't see WebSockets opened from
 a worker, so with CSP off the exfiltration count is a lower bound; with CSP on
 they show up as blocked.
 

@@ -93,8 +93,8 @@ Acceptance:
 ## M5: Security defenses + red-team suite
 - Detector, spotlighting, sanitizer, CSP-violation surfacing, defense flags, ≥ 20 red-team cases, the "Try to hack it" card, and the `/security` page.
 Acceptance:
-- [ ] Red-team table for all-on, all-off, and each-off, with attack success rate and task success under attack.
-- [ ] Zero exfiltration successes with CSP on (Playwright-verified); blocked attempts visible in the trace.
+- [x] Red-team table for all-on, all-off, and each-off, with attack success rate and task success under attack. (2026-09-26: gemini-3.5-flash-lite, 0/24 attacks and 25/25 tasks in all 7 configurations; on /security and in the README.)
+- [x] Zero exfiltration successes with CSP on (Playwright-verified); blocked attempts visible in the trace. (Hijacked model: 0 requests left with CSP on in all 5 CSP-on configurations; 3 with CSP off, 4 with everything off.)
 
 ## M6: Leaderboard, replays, examples
 - At least 3 models benchmarked; `/benchmark` page; replay recorder and player; every sample card plays a replay with "Run live".
@@ -105,7 +105,7 @@ Acceptance:
 ## M7: Polish + launch
 - README (outline below), architecture diagram (Mermaid in the README), performance-budget and mobile pass, `smoke.yml`, final benchmark and red-team numbers in the README.
 Acceptance:
-- [ ] README complete with release numbers committed. (2026-09-25: README follows the outline, with a Mermaid diagram, results, performance, and methodology; live-model red-team rates and the gemini-3.5-flash-lite leaderboard row wait on the daily Gemini quota.)
+- [ ] README complete with release numbers committed. (2026-09-25: README follows the outline, with a Mermaid diagram, results, performance, and methodology; 2026-09-26: live-model red-team rates added; the gemini-3.5-flash-lite leaderboard row waits on the daily Gemini quota.)
 - [ ] Smoke workflow green for 3 consecutive days. (`.github/workflows/smoke.yml`, daily at 05:23 UTC; first run green on 2026-09-25, run 36199472966.)
 - [x] Demo video linked at the top of the README. (2026-09-26: made by Claude at the user's request from scripted recordings of the live site; the live "Try to hack it" run is one gemini-3.5-flash-lite run on production; 65 s, captioned; GitHub inline player plus https://youtu.be/ECeh_A207S0, unlisted.)
 
