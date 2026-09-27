@@ -87,7 +87,7 @@ Acceptance:
 - `datasets.json` with download and verification; `tasks.jsonl` with reference SQL (all reviewed by the user); `bench:expected`; the Node harness; scorers; report; baseline; CI smoke gate with PR comment.
 Acceptance:
 - [x] About 100 reviewed tasks covering every category. (2026-09-26: reviewed by Claude, which the user delegated: all 100 reference queries re-run on the data; no ties in the top-1 tasks; messy-data normalizations verified (no blank strings, every date parses in the three formats); the impossible tasks confirmed unanswerable, e.g. owid_co2 has no methane column. No task needed a change.)
-- [ ] Per-category baseline for one model committed in `benchmark/baseline.json`.
+- [x] Per-category baseline for one model committed in `benchmark/baseline.json`. (2026-09-27: gemini-3.5-flash-lite, the live app's first model: 94/100, smoke 14/15.)
 - [ ] The gate proven by a deliberately broken branch (then reverted).
 
 ## M5: Security defenses + red-team suite
@@ -99,13 +99,13 @@ Acceptance:
 ## M6: Leaderboard, replays, examples
 - At least 3 models benchmarked; `/benchmark` page; replay recorder and player; every sample card plays a replay with "Run live".
 Acceptance:
-- [ ] Leaderboard live with ≥ 3 models and per-category results. (2026-09-25: live with gemini-3.1-flash-lite 94% and gemma-4-26b-a4b-it 88%; gemini-3.5-flash-lite waits on its daily quota.)
+- [x] Leaderboard live with ≥ 3 models and per-category results. (2026-09-27: gemini-3.5-flash-lite 94%, gemini-3.1-flash-lite 94%, gemma-4-26b-a4b-it 88%.)
 - [x] Replays work when every provider is down. (`web/e2e/replay.e2e.ts` against the live site, version 9227da35: every step answers 503, the recording still plays, and the quota message offers it.)
 
 ## M7: Polish + launch
 - README (outline below), architecture diagram (Mermaid in the README), performance-budget and mobile pass, `smoke.yml`, final benchmark and red-team numbers in the README.
 Acceptance:
-- [ ] README complete with release numbers committed. (2026-09-25: README follows the outline, with a Mermaid diagram, results, performance, and methodology; 2026-09-26: live-model red-team rates added; the gemini-3.5-flash-lite leaderboard row waits on the daily Gemini quota.)
+- [x] README complete with release numbers committed. (2026-09-25: README follows the outline, with a Mermaid diagram, results, performance, and methodology; 2026-09-26: live-model red-team rates added; 2026-09-27: gemini-3.5-flash-lite benchmark row added.)
 - [ ] Smoke workflow green for 3 consecutive days. (`.github/workflows/smoke.yml`, daily at 05:23 UTC; first run green on 2026-09-25, run 36199472966.)
 - [x] Demo video linked at the top of the README. (2026-09-26: made by Claude at the user's request from scripted recordings of the live site; the live "Try to hack it" run is one gemini-3.5-flash-lite run on production; 65 s, captioned; GitHub inline player plus https://youtu.be/ECeh_A207S0, unlisted.)
 

@@ -122,6 +122,6 @@ When compacting, keep: the goal, current milestone, decisions and constraints, f
 - [x] M3 Charts + Python sandbox + approvals
 - [ ] M4 Benchmark v1 + CI gate
 - [x] M5 Security defenses + red-team suite
-- [ ] M6 Leaderboard, replays, examples
+- [x] M6 Leaderboard, replays, examples
 - [ ] M7 Polish + launch
 

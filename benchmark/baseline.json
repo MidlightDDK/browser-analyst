@@ -1,0 +1,80 @@
+{
+  "model": "geminiLite",
+  "provider_model": "gemini-3.5-flash-lite",
+  "prompt_version": "prompt-v3",
+  "toolset_version": "tools-v2",
+  "recorded_at": "2026-09-27T09:49:18.363Z",
+  "overall": {
+    "tasks": 100,
+    "passed": 94,
+    "success": 94
+  },
+  "smoke": {
+    "tasks": 15,
+    "passed": 14,
+    "success": 93.3
+  },
+  "by_category": {
+    "aggregation": {
+      "tasks": 12,
+      "passed": 12,
+      "success": 100
+    },
+    "filter": {
+      "tasks": 11,
+      "passed": 11,
+      "success": 100
+    },
+    "join": {
+      "tasks": 9,
+      "passed": 9,
+      "success": 100
+    },
+    "time_series": {
+      "tasks": 11,
+      "passed": 11,
+      "success": 100
+    },
+    "cleaning": {
+      "tasks": 10,
+      "passed": 10,
+      "success": 100
+    },
+    "statistics": {
+      "tasks": 10,
+      "passed": 10,
+      "success": 100
+    },
+    "chart": {
+      "tasks": 10,
+      "passed": 10,
+      "success": 100
+    },
+    "multi_step": {
+      "tasks": 11,
+      "passed": 11,
+      "success": 100
+    },
+    "ambiguous": {
+      "tasks": 8,
+      "passed": 2,
+      "success": 25
+    },
+    "impossible": {
+      "tasks": 8,
+      "passed": 8,
+      "success": 100
+    }
+  },
+  "metrics": {
+    "mean_steps": 3.6,
+    "self_repair_rate": 0.949,
+    "tool_error_rate": 0.137,
+    "provenance_valid_rate": 0.99,
+    "tokens_in": 1335319,
+    "tokens_out": 54616,
+    "mean_tokens_in": 13353,
+    "wall_ms": 669034,
+    "cache_hit_rate": 0.696
+  }
+}

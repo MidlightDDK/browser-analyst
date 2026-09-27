@@ -42,34 +42,35 @@ Every number below comes from a reproducible run of the production agent code
 
 | Model | Success | Smoke split | Self-repair | Tool errors | Answers traced to results | Steps per task | Input tokens per task |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| `gemini-3.5-flash-lite` | **94%** (94/100) | 14/15 | 94.9% | 13.7% | 99% | 3.6 | 13,353 |
 | `gemini-3.1-flash-lite` | **94%** (94/100) | 15/15 | 87.5% | 7.1% | 100% | 3.1 | 11,205 |
 | `gemma-4-26b-a4b-it` | **88%** (88/100) | 14/15 | 81% | 8.6% | 100% | 3.5 | 14,090 |
 
-| Category | Tasks | `gemini-3.1-flash-lite` | `gemma-4-26b-a4b-it` |
-| --- | --- | --- | --- |
-| Aggregation | 12 | 12 | 12 |
-| Filter | 11 | 11 | 11 |
-| Join | 9 | 9 | 9 |
-| Time series | 11 | 11 | 11 |
-| Cleaning messy data | 10 | 9 | 10 |
-| Statistics | 10 | 10 | 10 |
-| Chart | 10 | 10 | 9 |
-| Multi-step | 11 | 11 | 9 |
-| Ambiguous (should ask) | 8 | 3 | 1 |
-| Impossible (should decline) | 8 | 8 | 6 |
+| Category | Tasks | `gemini-3.5-flash-lite` | `gemini-3.1-flash-lite` | `gemma-4-26b-a4b-it` |
+| --- | --- | --- | --- | --- |
+| Aggregation | 12 | 12 | 12 | 12 |
+| Filter | 11 | 11 | 11 | 11 |
+| Join | 9 | 9 | 9 | 9 |
+| Time series | 11 | 11 | 11 | 11 |
+| Cleaning messy data | 10 | 10 | 9 | 10 |
+| Statistics | 10 | 10 | 10 | 10 |
+| Chart | 10 | 10 | 10 | 9 |
+| Multi-step | 11 | 11 | 11 | 9 |
+| Ambiguous (should ask) | 8 | 2 | 3 | 1 |
+| Impossible (should decline) | 8 | 8 | 8 | 6 |
 
 - **Self-repair**: of the tasks where a tool call failed (a SQL error, a bad
   column), the share the agent still got right.
 - **Answers traced to results**: the share of final answers whose key numbers
   all matched the result cells they cite (checked by the app, allowing for
-  rounding). Both models: every answer.
+  rounding). Every answer but one: one `gemini-3.5-flash-lite` answer, to a
+  join it still got right, gave a number its cited cell doesn't hold.
 - Most failures are judgment calls. Faced with an ambiguous question ("What's
-  the average?" about the bike-sharing table), both models usually picked a
-  reading and answered instead of asking. Eight of Gemma's 12 failures ended
-  without an answer: 4 at the step cap and 4 after three failed replies in a
-  row, such as reasoning written as text instead of a tool call.
-- The live app's first model, `gemini-3.5-flash-lite`, joins the table once
-  its daily quota allows a full run: it shares that quota with the live site.
+  the average?" about the bike-sharing table), all three models usually picked
+  a reading and answered instead of asking; all 6 of `gemini-3.5-flash-lite`'s
+  failures are such questions. Eight of Gemma's 12 failures ended without an
+  answer: 4 at the step cap and 4 after three failed replies in a row, such as
+  reasoning written as text instead of a tool call.
 
 ### Red team: 24 prompt-injection cases
 
@@ -173,7 +174,7 @@ wants to know, so a question takes about three steps.
 **Checked numbers.** `final_answer` must cite a cell for each key number, and
 the app compares them, allowing for rounding. On a mismatch the model gets one
 chance to fix it; after that the answer carries a visible warning. *Evidence:*
-100% of answers traced for both models; a unit test plants a wrong number and
+99–100% of answers traced for all three models; a unit test plants a wrong number and
 expects the warning (`packages/agent/src/loop.test.ts`).
 
 **An in-browser sandbox.** DuckDB-WASM and Pyodide run in Web Workers, so
