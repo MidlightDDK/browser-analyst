@@ -120,7 +120,7 @@ When compacting, keep: the goal, current milestone, decisions and constraints, f
 - [x] M1 Data layer: files → DuckDB-WASM → profiles
 - [x] M2 Agent core + gateway + chat/trace UI
 - [x] M3 Charts + Python sandbox + approvals
-- [ ] M4 Benchmark v1 + CI gate
+- [x] M4 Benchmark v1 + CI gate
 - [x] M5 Security defenses + red-team suite
 - [x] M6 Leaderboard, replays, examples
 - [ ] M7 Polish + launch

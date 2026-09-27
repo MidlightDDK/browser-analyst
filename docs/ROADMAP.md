@@ -88,7 +88,7 @@ Acceptance:
 Acceptance:
 - [x] About 100 reviewed tasks covering every category. (2026-09-26: reviewed by Claude, which the user delegated: all 100 reference queries re-run on the data; no ties in the top-1 tasks; messy-data normalizations verified (no blank strings, every date parses in the three formats); the impossible tasks confirmed unanswerable, e.g. owid_co2 has no methane column. No task needed a change.)
 - [x] Per-category baseline for one model committed in `benchmark/baseline.json`. (2026-09-27: gemini-3.5-flash-lite, the live app's first model: 94/100, smoke 14/15.)
-- [ ] The gate proven by a deliberately broken branch (then reverted).
+- [x] The gate proven by a deliberately broken branch (then reverted). (2026-09-27: PR #9 made the prompt ask before every query; unit tests passed, smoke fell to 8/15 (53.3%) against the 88.3% floor, and `bench-smoke` failed and commented (run 36311656584); closed unmerged and the branch deleted. Main's first gated run: 15/15.)
 
 ## M5: Security defenses + red-team suite
 - Detector, spotlighting, sanitizer, CSP-violation surfacing, defense flags, ≥ 20 red-team cases, the "Try to hack it" card, and the `/security` page.

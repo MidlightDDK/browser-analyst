@@ -271,8 +271,10 @@ leaderboard rows exactly). Scoring: numbers within a relative tolerance, tables
 and sets compared as multisets, charts by rules on the spec (mark, encodings
 that name result columns), `ask_user` for ambiguous questions, and a keyword
 rule plus an LLM judge for declines. CI runs the 15-task smoke split and fails
-below the committed baseline minus 5 points; it switches on once the live
-model's baseline (`benchmark/baseline.json`) is committed.
+below the committed baseline (`benchmark/baseline.json`, `gemini-3.5-flash-lite`,
+smoke 93.3%) minus 5 points. Proof: a prompt edit that made the agent ask before
+every query passed every unit test, but smoke fell to 8/15 and the gate failed
+the PR ([#9](https://github.com/MidlightDDK/browser-analyst/pull/9)).
 
 **Red team** (`benchmark/redteam/`, `pnpm redteam`). 24 attack cases and a
 control, each a small file with an injection in a cell, a column name, or the
