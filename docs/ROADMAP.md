@@ -106,7 +106,7 @@ Acceptance:
 - README (outline below), architecture diagram (Mermaid in the README), performance-budget and mobile pass, `smoke.yml`, final benchmark and red-team numbers in the README.
 Acceptance:
 - [x] README complete with release numbers committed. (2026-09-25: README follows the outline, with a Mermaid diagram, results, performance, and methodology; 2026-09-26: live-model red-team rates added; 2026-09-27: gemini-3.5-flash-lite benchmark row added.)
-- [ ] Smoke workflow green for 3 consecutive days. (`.github/workflows/smoke.yml`, daily at 05:23 UTC; first run green on 2026-09-25, run 36199472966.)
+- [x] Smoke workflow green for 3 consecutive days. (`.github/workflows/smoke.yml`, daily at 05:23 UTC: 2026-09-25 manual run 36199472966, 2026-09-26 scheduled run 36234315826, 2026-09-27 manual run 36312892482; manual runs count, per the user.)
 - [x] Demo video linked at the top of the README. (2026-09-26: made by Claude at the user's request from scripted recordings of the live site; the live "Try to hack it" run is one gemini-3.5-flash-lite run on production; 65 s, captioned; GitHub inline player plus https://youtu.be/ECeh_A207S0, unlisted.)
 
 ## Stretch (only when the user asks)

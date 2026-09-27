@@ -123,5 +123,5 @@ When compacting, keep: the goal, current milestone, decisions and constraints, f
 - [x] M4 Benchmark v1 + CI gate
 - [x] M5 Security defenses + red-team suite
 - [x] M6 Leaderboard, replays, examples
-- [ ] M7 Polish + launch
+- [x] M7 Polish + launch
 
