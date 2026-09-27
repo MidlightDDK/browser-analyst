@@ -359,3 +359,10 @@ confidential data.
 ## License
 
 Code: [MIT](LICENSE). Datasets: as listed above.
+
+## The full explanation
+
+New to AI or computer science? [FULL_EXPLANATION.md](FULL_EXPLANATION.md)
+explains every part of the project and every decision behind it in plain
+words, with a glossary, a walk-through of one question, and how the project
+was built.
