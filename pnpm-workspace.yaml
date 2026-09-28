@@ -2,6 +2,7 @@ packages:
   - web
   - worker
   - packages/agent
+  - packages/sqlgen
   - benchmark
 
 onlyBuiltDependencies:

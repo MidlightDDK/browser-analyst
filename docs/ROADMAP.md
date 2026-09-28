@@ -111,7 +111,7 @@ Acceptance:
 
 ## Stretch (only when the user asks)
 - `packages/mcp-server`: a stdio MCP server built with `@modelcontextprotocol/sdk` exposing `list_tables`, `describe_table`, and `run_sql` over local files via `@duckdb/node-api`; publish to npm only if the user wants.
-- Tier-0 local SQL model from the PocketSQL project: try the local model first, escalate to the LLM agent when its SQL fails validation; report % answered locally, the accuracy change, and API calls saved.
+- Tier-0 local SQL model from the PocketSQL project: try the local model first, escalate to the LLM agent when its SQL fails validation; report % answered locally, the accuracy change, and API calls saved. (Done 2026-09-28 with PocketSQL's M7: `packages/agent/src/cascade.ts`, `pnpm bench:cascade`; 36/100 answered locally, success 86% vs 94%, 30% fewer LLM calls; README "Tier 0".)
 
 ## README outline (recruiter-first)
 1. One-line pitch, live link, 60-second video/GIF.

@@ -18,6 +18,7 @@
     "bench:expected": "node benchmark/src/expected.ts",
     "bench": "node --use-system-ca --env-file-if-exists=.env benchmark/src/run.ts",
     "bench:report": "node benchmark/src/report.ts",
+    "bench:cascade": "node --use-system-ca benchmark/src/cascade.ts",
     "bench:judge": "node --use-system-ca --env-file-if-exists=.env benchmark/src/judge.ts",
     "redteam": "node --use-system-ca --env-file-if-exists=.env benchmark/redteam/run.ts",
     "replay:record": "node --use-system-ca --env-file-if-exists=.env benchmark/src/replay-record.ts",

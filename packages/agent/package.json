@@ -15,6 +15,7 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@pocketsql/sqlgen": "workspace:*",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

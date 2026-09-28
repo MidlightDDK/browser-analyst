@@ -1,0 +1,16 @@
+{
+  "name": "@pocketsql/sqlgen",
+  "private": true,
+  "description": "Vendored from PocketSQL (packages/sqlgen): schema serializer, prompt builder, and SQL post-processing for the tier-0 local model.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

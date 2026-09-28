@@ -266,6 +266,17 @@ const asTable = (r: StoredResult) => ({
   rows: r.rows,
 });
 
+function tableOptions(task: Task, value: TableValue): MatchOptions {
+  const { expected } = task;
+  return {
+    // A one-row reference is a top-1 answer: the first row of a ranking counts.
+    orderMatters: expected.order_matters || value.rows.length === 1,
+    columns: expected.columns,
+    tolerance: expected.tolerance ?? DEFAULT_TOLERANCE,
+    distinct: expected.kind === "set",
+  };
+}
+
 /** The expected number appears in the answer: cited cell, key number, or text. */
 function numberAnswered(
   outcome: Extract<Outcome, { kind: "answer" }>,
@@ -437,13 +448,7 @@ export function scoreRun(task: Task, view: RunView, refused?: boolean): Score {
     );
   }
 
-  const opts: MatchOptions = {
-    // A one-row reference is a top-1 answer: the first row of a ranking counts.
-    orderMatters: expected.order_matters || value.rows.length === 1,
-    columns: expected.columns,
-    tolerance: tol,
-    distinct: expected.kind === "set",
-  };
+  const opts = tableOptions(task, value);
   if (candidateResults(view).some((r) => tableMatches(asTable(r), value, opts)))
     return done(true, "result table matches");
   if (rowAnswered(outcome, value, expected.columns, tol))
@@ -452,4 +457,32 @@ export function scoreRun(task: Task, view: RunView, refused?: boolean): Score {
     false,
     `no result matches the ${value.rows.length}-row reference`,
   );
+}
+
+/**
+ * Scores a bare result table: the whole answer of the cascade's tier 0 (one
+ * local query, no prose). A number task needs a one-row result holding the
+ * number. Tier 0 cannot draw a chart, ask, or decline, so those tasks fail.
+ */
+export function scoreTable(task: Task, result: StoredResult): boolean {
+  const { expected } = task;
+  const value = expected.value;
+  if (expected.kind === "number") {
+    if (typeof value !== "number")
+      throw new Error(`${task.id}: number expected`);
+    const tol = expected.tolerance ?? DEFAULT_TOLERANCE;
+    const [row, ...rest] = result.rows;
+    return (
+      row !== undefined &&
+      rest.length === 0 &&
+      row.some((c) => {
+        const n = cellNumber(c);
+        return n !== null && approxEqual(n, value, tol);
+      })
+    );
+  }
+  if (expected.kind !== "table" && expected.kind !== "set") return false;
+  if (value === undefined || typeof value === "number")
+    throw new Error(`${task.id}: table expected`);
+  return tableMatches(asTable(result), value, tableOptions(task, value));
 }

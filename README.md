@@ -102,6 +102,33 @@ model ignored the injections even without spotlighting or the detector, these
 runs show that the defenses cost no accuracy, not how much they add; the
 hijacked run above shows what the CSP catches when a model does obey.
 
+### Tier 0: a small local model first
+
+[PocketSQL](https://github.com/MidlightDDK/pocketsql) is a 0.5B text-to-SQL
+model I fine-tuned for DuckDB; it runs in the browser with no API calls. As
+tier 0 of a cascade it answers each benchmark question first, with one query,
+and the agent takes over when that answer looks wrong: the SQL fails, returns
+nothing, or a second sample (temperature 0.3) returns a different result.
+Chart requests skip tier 0. Escalated tasks use the agent's recorded
+`gemini-3.5-flash-lite` run above, so the comparison makes no API calls.
+
+| Keep the local answer if | Answered locally | Of those, right | Success | LLM calls saved |
+| --- | --- | --- | --- | --- |
+| (agent alone) | 0 | | 94% | 0 |
+| its SQL runs and returns rows | 47 | 26 | 76% | 41% |
+| … and a second sample agrees | 36 | 25 | 86% | 30% |
+
+Tier 0 got all 17 aggregation and filter questions it kept right, but with
+the stricter rule it still loses 8 tasks the agent gets right and wins none:
+5 wrong numbers or tables on statistics, cleaning, and time-series questions,
+and 3 questions the agent asked about or declined, which a model that only
+writes SQL can't do. At that price (and a 276 MB download) the live app
+doesn't use it. Report:
+[web/public/benchmark/cascade.json](web/public/benchmark/cascade.json)
+(`pnpm bench:cascade`, the q4f16 model through Transformers.js in Node, median
+1.4 s per question); router: `packages/agent/src/cascade.ts`, with PocketSQL's
+prompt code vendored in `packages/sqlgen`.
+
 ### Performance
 
 | Measurement | Result | Target |
@@ -234,6 +261,10 @@ without `unsafe-eval`.
   the 8 questions labeled ambiguous, the models asked 3 and 1 times. It's the
   weakest category for both, and either the prompt or those labels needs
   another pass.
+- **A small local model as tier 0.** Checks on the SQL result alone (it runs,
+  returns rows, two samples agree) can't tell when a question needs
+  clarification or has no answer in the data, so the cascade above costs 8
+  points of success for 30% fewer LLM calls.
 - **Gemini 3.8 Flash as the first provider.** Its free tier allows 20 requests a
   day, so Gemini 3.5 Flash-Lite (500 a day) leads the chain and Flash backs up
   its "high demand" 503s.
@@ -316,6 +347,7 @@ app, and put `GEMINI_API_KEY` in a root `.env` for the benchmark:
 pnpm bench:data                                # download and verify the datasets
 pnpm bench --model gemini31Lite --tasks smoke  # or --tasks all
 pnpm bench:report
+pnpm bench:cascade --run benchmark/results/<ts>/  # PocketSQL tier 0 (downloads its 276 MB model)
 ```
 
 ## Datasets, privacy, and limitations
@@ -358,7 +390,9 @@ confidential data.
 
 ## License
 
-Code: [MIT](LICENSE). Datasets: as listed above.
+Code: [MIT](LICENSE). Datasets: as listed above. Tier-0 model:
+[MidlightDDK/pocketsql-0.5b](https://huggingface.co/MidlightDDK/pocketsql-0.5b),
+Apache-2.0.
 
 ## The full explanation
 

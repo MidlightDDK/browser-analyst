@@ -15,6 +15,7 @@ import {
   roundedMatch,
   saysCannotAnswer,
   scoreRun,
+  scoreTable,
   tableMatches,
 } from "./score.ts";
 import type { Expected, Task } from "./tasks.ts";
@@ -437,6 +438,45 @@ describe("scoreRun", () => {
     expect(
       scoreRun(task({ kind: "number", value: 1 }), view(stop)).tags,
     ).toEqual(["gave_up"]);
+  });
+});
+
+describe("scoreTable (cascade tier 0)", () => {
+  it("needs a one-row result holding the number", () => {
+    const t = task({ kind: "number", value: 5076.016 });
+    expect(scoreTable(t, stored("r1", ["m"], [[5076.016]]))).toBe(true);
+    expect(
+      scoreTable(t, stored("r1", ["s", "m"], [["Gentoo", 5076.016]])),
+    ).toBe(true);
+    expect(scoreTable(t, stored("r1", ["m"], [[5076.016], [3700]]))).toBe(
+      false,
+    );
+    expect(scoreTable(t, stored("r1", ["m"], [[5076]]))).toBe(false);
+  });
+
+  it("matches tables like the agent's results and fails what it can't do", () => {
+    const t = task({
+      kind: "table",
+      value: table(
+        ["species", "n"],
+        [
+          ["Adelie", 152],
+          ["Gentoo", 124],
+        ],
+      ),
+    });
+    const r = stored(
+      "r1",
+      ["n", "species"],
+      [
+        [124, "Gentoo"],
+        [152, "Adelie"],
+      ],
+    );
+    expect(scoreTable(t, r)).toBe(true);
+    expect(scoreTable(t, stored("r1", ["n"], [[124], [152]]))).toBe(false);
+    for (const kind of ["clarify", "refuse"] as const)
+      expect(scoreTable(task({ kind }), r)).toBe(false);
   });
 });
 
