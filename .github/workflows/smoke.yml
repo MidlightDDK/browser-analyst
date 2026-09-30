@@ -1,0 +1,51 @@
+name: Smoke
+
+# Daily check of the live site, with no model calls: Home loads, /api/health
+# answers, /benchmark renders, and a sample question plays its recorded run
+# (then "Run live" against a scripted gateway). A failure opens an issue, or
+# comments on the open one.
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      E2E_BASE_URL: https://browser-analyst.azar-majed7.workers.dev
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @browser-analyst/web exec playwright install --with-deps chromium
+      - name: Home, /api/health, /benchmark, and replays on the live site
+        run: pnpm --filter @browser-analyst/web exec playwright test e2e/home.e2e.ts e2e/replay.e2e.ts --project=chromium --retries=1
+
+  report:
+    needs: live
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - run: |
+          title="Daily smoke test failed"
+          n=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body "Failed again: $RUN_URL"
+          else
+            gh issue create --title "$title" --body "The daily smoke test of the live site failed: $RUN_URL"
+          fi
